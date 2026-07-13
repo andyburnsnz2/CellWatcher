@@ -1,0 +1,17 @@
+<Project Sdk="WixToolset.Sdk/6.0.2">
+
+  <PropertyGroup>
+    <!-- Personal/non-commercial project, well under the $10K/year revenue threshold that
+         triggers the Open Source Maintenance Fee — see https://docs.firegiant.com/wix/osmf/ -->
+    <AcceptEula>wix6</AcceptEula>
+    <OutputName>CellWatcher.Setup</OutputName>
+    <Platform>x64</Platform>
+    <DefineConstants>PublishDir=$(MSBuildThisFileDirectory)..\..\publish</DefineConstants>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <PackageReference Include="WixToolset.Firewall.wixext" Version="6.0.2" />
+    <PackageReference Include="WixToolset.Util.wixext" Version="6.0.2" />
+  </ItemGroup>
+
+</Project>

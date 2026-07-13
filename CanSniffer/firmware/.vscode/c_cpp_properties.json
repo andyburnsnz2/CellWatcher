@@ -8,11 +8,11 @@
         {
             "name": "PlatformIO",
             "includePath": [
-                "c:/Source/BatteryEMU/CanSniffer/firmware/src",
+                "c:/Source/CellWatcher/CanSniffer/firmware/src",
                 "C:/pio/packages/framework-arduinoespressif32/libraries/WebServer/src",
                 "C:/pio/packages/framework-arduinoespressif32/libraries/Preferences/src",
                 "C:/pio/packages/framework-arduinoespressif32/libraries/WiFi/src",
-                "c:/Source/BatteryEMU/CanSniffer/firmware/.pio/libdeps/esp32dev/FastLED/src",
+                "c:/Source/CellWatcher/CanSniffer/firmware/.pio/libdeps/esp32dev/FastLED/src",
                 "C:/pio/packages/framework-arduinoespressif32/libraries/SD/src",
                 "C:/pio/packages/framework-arduinoespressif32/libraries/SPI/src",
                 "C:/pio/packages/framework-arduinoespressif32/libraries/FS/src",
@@ -244,11 +244,11 @@
             "browse": {
                 "limitSymbolsToIncludedHeaders": true,
                 "path": [
-                    "c:/Source/BatteryEMU/CanSniffer/firmware/src",
+                    "c:/Source/CellWatcher/CanSniffer/firmware/src",
                     "C:/pio/packages/framework-arduinoespressif32/libraries/WebServer/src",
                     "C:/pio/packages/framework-arduinoespressif32/libraries/Preferences/src",
                     "C:/pio/packages/framework-arduinoespressif32/libraries/WiFi/src",
-                    "c:/Source/BatteryEMU/CanSniffer/firmware/.pio/libdeps/esp32dev/FastLED/src",
+                    "c:/Source/CellWatcher/CanSniffer/firmware/.pio/libdeps/esp32dev/FastLED/src",
                     "C:/pio/packages/framework-arduinoespressif32/libraries/SD/src",
                     "C:/pio/packages/framework-arduinoespressif32/libraries/SPI/src",
                     "C:/pio/packages/framework-arduinoespressif32/libraries/FS/src",

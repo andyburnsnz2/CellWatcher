@@ -1,7 +1,7 @@
 # CanSniffer firmware (LilyGO T-CAN485)
 
 Passively listens to the CAN bus between the battery and the Battery-Emulator, and streams every
-frame to BatteryEMU over UDP for logging. This is step one — capture and log only. No analysis,
+frame to CellWatcher over UDP for logging. This is step one — capture and log only. No analysis,
 no involvement in balancing, nothing else.
 
 No network configuration is compiled in anywhere — see "Zero-config networking" below.
@@ -54,11 +54,11 @@ without needing to erase flash or reflash.
 actually read off the bus, newest first, auto-refreshing every 2s. Backed by a small in-memory
 ring buffer on the device itself (~2.4KB RAM), independent of WiFi/discovery status — useful for
 confirming the wiring/bitrate/listen-only setup is actually capturing something, even before
-BatteryEMU has been discovered.
+CellWatcher has been discovered.
 
-**BatteryEMU's address** isn't configured either — it's *learned*. Once the STA side is connected,
+**CellWatcher's address** isn't configured either — it's *learned*. Once the STA side is connected,
 the device broadcasts a small `CANSNIFFER-HELLO` UDP announce on port 47101 every 2 seconds until
-BatteryEMU's `CanSnifferDiscoveryService` (see `ConsoleApp1/Services/`) replies directly to it —
+CellWatcher's `CanSnifferDiscoveryService` (see `CellWatcher/Services/`) replies directly to it —
 that reply's source address becomes where CAN frame batches get sent. This is a one-time discovery
 per boot: if the server's IP changes mid-session, the device won't notice until its next reboot.
 
@@ -82,7 +82,7 @@ thing that works until it silently doesn't. All multi-byte fields little-endian.
 
 Plain ASCII, no binary framing needed at this rate:
 - Device → broadcast: `CANSNIFFER-HELLO`
-- Server → device (unicast reply): `BATTERYEMU-HELLO` — the device only cares about the *source
+- Server → device (unicast reply): `CELLWATCHER-HELLO` — the device only cares about the *source
   address* of this reply, not its content beyond recognizing it as a real reply.
 
 ### CAN data (port 47100, high rate)

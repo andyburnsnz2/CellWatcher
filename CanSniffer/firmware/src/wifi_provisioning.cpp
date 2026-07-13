@@ -55,8 +55,8 @@ bool isStaConnected() {
     return WiFi.status() == WL_CONNECTED;
 }
 
-// ---- Web UI — styling mirrors the main BatteryEMU web app (dark theme, green accents); see
-// ConsoleApp1/Web/wwwroot/*.html for the source of truth this echoes by hand, since this page is
+// ---- Web UI — styling mirrors the main CellWatcher web app (dark theme, green accents); see
+// CellWatcher/Web/wwwroot/*.html for the source of truth this echoes by hand, since this page is
 // generated as plain strings rather than sharing any actual CSS file with that (separate,
 // .NET-hosted) app. ----
 

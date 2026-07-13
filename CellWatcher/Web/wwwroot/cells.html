@@ -1,0 +1,781 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>CellWatcher — Cells</title>
+<link rel="icon" href="/img/cellwatcher.png">
+<script src="https://cdn.jsdelivr.net/npm/apexcharts@3.45.0/dist/apexcharts.min.js"></script>
+<style>
+*,*::before,*::after{box-sizing:border-box}
+html{overflow-y:scroll}
+body{margin:0;background:#000;color:#e0e0e0;font-family:system-ui,-apple-system,sans-serif;font-size:14px;line-height:1.5}
+a{text-decoration:none}
+nav{background:#111;border-bottom:1px solid #222;position:sticky;top:0;z-index:100}
+.nav-inner{max-width:1400px;margin:0 auto;padding:0 1.5rem;height:96px;display:flex;align-items:center;gap:1rem}
+.brand-logo{height:80px;width:80px;border-radius:14px;flex-shrink:0;border:2px solid rgba(110,198,42,.7);box-shadow:0 0 28px rgba(110,198,42,.75),0 0 8px rgba(110,198,42,1),0 0 50px rgba(110,198,42,.25)}
+.brand{color:#6ec62a;font-weight:700;font-size:1.2rem;margin-right:.25rem}
+.nav-inner a{color:#888;padding:.25rem .6rem;border-radius:4px;font-size:.85rem}
+.nav-inner a:hover,.nav-inner a.on{background:#222;color:#f0f0f0}
+.ml{margin-left:auto}
+.page{max-width:1400px;margin:0 auto;padding:1.25rem}
+.card{background:#111;border:1px solid #222;border-radius:8px;padding:1rem}
+.card-title{font-size:.68rem;text-transform:uppercase;letter-spacing:.07em;color:#555;margin-bottom:.4rem}
+.val{font-size:1.45rem;font-weight:700}
+.sub{font-size:.72rem;color:#555;margin-top:.15rem}
+.g4{display:grid;grid-template-columns:repeat(4,1fr);gap:1rem}
+.muted{color:#555}
+.mt1{margin-top:.5rem}
+.mt2{margin-top:1rem}
+/* Cell grid */
+.cell-grid{display:grid;grid-template-columns:repeat(12,1fr);gap:3px}
+.cell{position:relative;padding:5px 3px 4px;border-radius:5px;text-align:center;border:1px solid transparent;cursor:default;transition:transform .1s,box-shadow .1s}
+.cell:hover{transform:scale(1.1);z-index:10;box-shadow:0 4px 12px rgba(0,0,0,.7)}
+.cell-num{font-size:.58rem;color:rgba(255,255,255,.45);line-height:1}
+.cell-v{font-size:.82rem;font-weight:700;line-height:1.3}
+.cell-dev{font-size:.62rem;line-height:1}
+.cell-flag{position:absolute;top:2px;right:3px;font-size:.55rem;line-height:1;font-weight:700}
+/* Legend */
+.legend{display:flex;gap:.75rem;align-items:center;flex-wrap:wrap}
+.legend-item{display:flex;align-items:center;gap:.3rem;font-size:.72rem}
+.legend-swatch{width:12px;height:12px;border-radius:2px;border:1px solid}
+/* Time travel */
+.pill{display:inline-flex;align-items:center;padding:.15rem .55rem;border-radius:999px;font-size:.68rem;font-weight:600}
+.ok{background:#0a2008;color:#6ec62a}
+.info{background:#0c1a4a;color:#60a5fa}
+input[type=datetime-local]{background:#000;border:1px solid #222;color:#e0e0e0;padding:.3rem .5rem;border-radius:5px;font-size:.78rem;outline:none;transition:border-color .15s}
+input[type=datetime-local]:focus{border-color:#6ec62a}
+.quick-btn{background:#0a0a0a;border:1px solid #222;color:#888;padding:.3rem .7rem;border-radius:4px;cursor:pointer;font-size:.75rem;transition:all .15s}
+.quick-btn:hover{border-color:#555;color:#e0e0e0}
+.quick-btn.active{background:#1a3a0a;border-color:#3a7a19;color:#6ec62a;font-weight:600}
+input[type=range]{-webkit-appearance:none;appearance:none;width:100%;height:6px;border-radius:999px;background:#000;outline:none}
+input[type=range]::-webkit-slider-thumb{-webkit-appearance:none;appearance:none;width:18px;height:18px;border-radius:50%;background:#6ec62a;cursor:pointer;box-shadow:0 0 8px rgba(110,198,42,.6);border:2px solid #0a2008}
+input[type=range]::-moz-range-thumb{width:18px;height:18px;border-radius:50%;background:#6ec62a;cursor:pointer;box-shadow:0 0 8px rgba(110,198,42,.6);border:2px solid #0a2008}
+.view-toggle{display:inline-flex;border:1px solid #222;border-radius:5px;overflow:hidden}
+.view-toggle button{padding:.3rem .8rem;font-size:.75rem;font-weight:600;border:none;background:#0a0a0a;color:#888;cursor:pointer}
+.view-toggle button.active{background:#1a3a0a;color:#6ec62a}
+.view-toggle button:not(:last-child){border-right:1px solid #222}
+</style>
+</head>
+<body>
+<nav>
+  <div class="nav-inner">
+    <img src="/img/cellwatcher.png" class="brand-logo" alt="CellWatcher">
+    <span class="brand">CellWatcher</span>    <a href="/">Dashboard</a>
+    <a href="/cells.html" class="on">Cells</a>
+    <a href="/history.html">History</a>
+    <a href="/health.html">Health</a>
+    <a href="/battery-balancing.html" id="nav-battery-balancing">Battery Balancing</a>
+    <a href="/canbus.html">Canbus</a>
+    <a href="/config.html">Config</a>
+    <span class="ml muted" id="ts" style="font-size:.75rem"></span>
+  </div>
+</nav>
+<div class="page">
+
+  <!-- Summary stats -->
+  <div class="g4" style="margin-bottom:1rem">
+    <div class="card"><div class="card-title">Pack Avg Voltage</div><div class="val" id="avg-v">—</div><div class="sub">Volts</div></div>
+    <div class="card"><div class="card-title">Cell Delta</div><div class="val" id="delta">—</div><div class="sub">millivolts</div></div>
+    <div class="card"><div class="card-title">Min Cell</div><div class="val" id="min-cell">—</div><div class="sub" id="min-v">—</div></div>
+    <div class="card"><div class="card-title">Max Cell</div><div class="val" id="max-cell">—</div><div class="sub" id="max-v">—</div></div>
+  </div>
+
+  <!-- Time Travel: date range -->
+  <div class="card mt1" style="padding:.85rem 1rem">
+    <div style="display:flex;align-items:center;gap:.6rem;flex-wrap:wrap">
+      <span style="font-size:.68rem;color:#8a8a8a;font-weight:600;text-transform:uppercase;letter-spacing:.06em">Time Travel</span>
+      <input type="datetime-local" id="range-from">
+      <span class="muted" style="font-size:.75rem">to</span>
+      <input type="datetime-local" id="range-to">
+      <div style="display:flex;gap:.35rem;flex-wrap:wrap">
+        <button type="button" class="quick-btn" data-range="today">Today</button>
+        <button type="button" class="quick-btn" data-range="yesterday">Yesterday</button>
+        <button type="button" class="quick-btn" data-range="last2days">Last 2 Days</button>
+        <button type="button" class="quick-btn" data-range="last3days">Last 3 Days</button>
+        <button type="button" class="quick-btn" data-range="thisweek">This Week</button>
+        <button type="button" class="quick-btn" data-range="lastweek">Last Week</button>
+        <button type="button" class="quick-btn" data-range="lastmonth">Last Month</button>
+      </div>
+      <span class="ml pill" id="viewing-mode" style="font-size:.7rem">—</span>
+    </div>
+  </div>
+
+  <!-- Legend -->
+  <div class="card mt1" style="display:flex;align-items:center;gap:1.5rem;padding:.6rem 1rem;flex-wrap:wrap">
+    <div class="legend">
+      <span style="color:#555;font-size:.72rem;font-weight:600">DEVIATION FROM AVERAGE</span>
+      <div class="legend-item"><div class="legend-swatch" style="background:#052e16;border-color:#16a34a"></div><span style="color:#4ade80">±0–5 mV</span></div>
+      <div class="legend-item"><div class="legend-swatch" style="background:#422006;border-color:#d97706"></div><span style="color:#fbbf24">±5–15 mV</span></div>
+      <div class="legend-item"><div class="legend-swatch" style="background:#431407;border-color:#ea580c"></div><span style="color:#fb923c">±15–25 mV</span></div>
+      <div class="legend-item"><div class="legend-swatch" style="background:#3b0404;border-color:#dc2626"></div><span style="color:#f87171">&gt;25 mV</span></div>
+    </div>
+    <div style="display:flex;gap:1rem;font-size:.72rem;margin-left:auto">
+      <span><span style="color:#60a5fa;font-weight:700">▼</span> Min cell</span>
+      <span><span style="color:#f472b6;font-weight:700">▲</span> Max cell</span>
+      <span><span style="color:#fbbf24;font-weight:700">B</span> Balancing</span>
+    </div>
+  </div>
+
+  <!-- Cell grid / deviation chart -->
+  <div class="card mt1" style="padding:.75rem">
+    <div style="display:flex;justify-content:flex-end;margin-bottom:.6rem">
+      <div class="view-toggle">
+        <button type="button" class="active" id="cell-view-heatmap-btn" onclick="setCellViewMode('heatmap')">Heat Map</button>
+        <button type="button" id="cell-view-deviation-btn" onclick="setCellViewMode('deviation')">Deviation Chart</button>
+      </div>
+    </div>
+    <div id="cell-grid" class="cell-grid"></div>
+    <div id="cell-deviation-chart" style="display:none"></div>
+  </div>
+
+  <!-- Time Travel: slider -->
+  <div class="card mt1" style="padding:.85rem 1rem">
+    <input type="range" id="time-slider" min="0" max="1000" value="1000">
+    <div style="display:flex;justify-content:space-between;font-size:.68rem;color:#8a8a8a;margin-top:.4rem">
+      <span id="slider-from-label">—</span>
+      <span id="slider-current-label" style="font-weight:600;color:#6ec62a"></span>
+      <span id="slider-to-label">Now</span>
+    </div>
+  </div>
+
+  <!-- Trend — only shown once the slider has actually been moved away from live -->
+  <div class="card mt1" id="trend-card" style="display:none;padding:.85rem 1rem">
+    <div class="card-title" style="margin-bottom:.6rem">SOC / Charge Power / Cell Delta — selected period</div>
+    <div id="trend-chart"></div>
+  </div>
+
+</div>
+<script>
+function deviationStyle(devMv) {
+  const a = Math.abs(devMv);
+  if (a >= 25) return {bg:'#3b0404', border:'#dc2626', text:'#f87171'};
+  if (a >= 15) return {bg:'#431407', border:'#ea580c', text:'#fb923c'};
+  if (a >= 5)  return {bg:'#422006', border:'#d97706', text:'#fbbf24'};
+  return          {bg:'#052e16', border:'#16a34a', text:'#4ade80'};
+}
+
+// Shared by both view modes — computes pack stats and updates the summary tiles once, regardless
+// of which visualization (heat map tiles or deviation chart) is currently shown.
+function computeCellStats(data) {
+  const voltages = data.cellVoltages || {};
+  const keys = Object.keys(voltages).map(Number).sort((a,b)=>a-b);
+  if (!keys.length) return null;
+
+  const vals = keys.map(k=>+voltages[k]);
+  const avg = vals.reduce((s,v)=>s+v,0) / vals.length;
+  const minV = Math.min(...vals);
+  const maxV = Math.max(...vals);
+  const minK = keys[vals.indexOf(minV)];
+  const maxK = keys[vals.indexOf(maxV)];
+
+  document.getElementById('avg-v').textContent   = avg.toFixed(4) + ' V';
+  document.getElementById('delta').textContent   = ((maxV-minV)*1000).toFixed(1);
+  document.getElementById('min-cell').textContent = '#' + minK;
+  document.getElementById('min-v').textContent   = minV.toFixed(4) + ' V';
+  document.getElementById('max-cell').textContent = '#' + maxK;
+  document.getElementById('max-v').textContent   = maxV.toFixed(4) + ' V';
+
+  return { keys, vals, avg, minV, maxV, minK, maxK };
+}
+
+function renderCellGrid(data, stats) {
+  const balancing = data.cellBalancing || {};
+  const { keys, avg, minK, maxK } = stats;
+
+  const grid = document.getElementById('cell-grid');
+  grid.innerHTML = keys.map(k => {
+    const v   = +data.cellVoltages[k];
+    const dev = (v - avg) * 1000;
+    const s   = deviationStyle(dev);
+    const isBal = !!balancing[k];
+    const isMin = k === minK;
+    const isMax = k === maxK;
+
+    let border = `1px solid ${s.border}`;
+    if (isMin) border = '2px solid #60a5fa';
+    else if (isMax) border = '2px solid #f472b6';
+
+    const flags = [
+      isMin ? `<span class="cell-flag" style="left:2px;right:auto;color:#60a5fa">▼</span>` : '',
+      isMax ? `<span class="cell-flag" style="color:#f472b6">▲</span>` : '',
+      isBal ? `<span class="cell-flag" style="top:auto;bottom:2px;right:3px;color:#fbbf24">B</span>` : ''
+    ].join('');
+
+    return `<div class="cell" style="background:${s.bg};border:${border}" title="Cell ${k}\nVoltage: ${v.toFixed(4)} V\nDeviation: ${dev>=0?'+':''}${dev.toFixed(2)} mV${isBal?' · Balancing':''}">
+      <div class="cell-num">${k}</div>
+      <div class="cell-v" style="color:${s.text}">${v.toFixed(3)}</div>
+      <div class="cell-dev" style="color:${s.text}">${dev>=0?'+':''}${dev.toFixed(1)}</div>
+      ${flags}
+    </div>`;
+  }).join('');
+}
+
+// Same visual language as the Health page's Cell Deviation chart (same thresholds/colors), but
+// driven by this page's point-in-time slider instead of a rolling-window average — one bar per
+// cell showing its deviation from the pack average AT the currently selected moment.
+let cellDeviationChart = null;
+
+// Two things had to be true at once and previous attempts only ever got one:
+//   1. xaxis.type must be explicitly 'category' (not left to inference) — with numeric x values
+//      in the data, ApexCharts silently infers a continuous numeric axis instead, which is what
+//      broke the category labels/ticks the two times {x,y,fillColor} data was tried without this.
+//   2. Per-tick recoloring must go through updateSeries alone, never updateOptions — updateOptions
+//      with redrawPaths:false is both slow (still a config merge) AND doesn't reliably repaint
+//      existing bars with new fill colors, which is why colors stopped appearing last time.
+// Per-point {x,y,fillColor} data satisfies both: correct category axis (with type set explicitly)
+// and color that travels with updateSeries, so scrubbing never calls updateOptions at all.
+function renderCellDeviationChart(data, stats) {
+  const { keys, avg } = stats;
+  const points = keys.map(k => {
+    const dev = (+data.cellVoltages[k] - avg) * 1000;
+    const a = Math.abs(dev);
+    const fillColor = a>=25 ? '#ef4444' : a>=15 ? '#f97316' : a>=5 ? '#fbbf24' : '#22c55e';
+    return { x: k, y: dev, fillColor };
+  });
+
+  if (!cellDeviationChart || deviationAxisNeedsUpdate) {
+    if (cellDeviationChart) cellDeviationChart.destroy();
+    const bound = niceAxisBound(cachedMaxAbsDeviationMv);
+    cellDeviationChart = new ApexCharts(document.getElementById('cell-deviation-chart'), {
+      chart:{ type:'bar', height:460, background:'transparent', toolbar:{show:false}, animations:{enabled:false} },
+      series:[{name:'Deviation', data: points}],
+      xaxis:{
+        type: 'category',
+        categories: keys,
+        // Per-cell tick labels never rendered cleanly here regardless of tickAmount/formatter —
+        // hidden outright rather than continuing to fight it; cell identity is still available via
+        // the tooltip on hover, and bar position/order (ascending cell number) is unambiguous.
+        labels:{ show:false },
+        axisBorder:{color:'#333'},
+        axisTicks:{show:false},
+        title:{text:'Cell Number (hover a bar for its number)', style:{color:'#555', fontSize:'11px'}}
+      },
+      // Fixed (not auto-scaled) — recomputed once per date-range change, not per scrub tick, so
+      // the axis stays put while dragging instead of visually jumping as the data changes.
+      yaxis:{
+        min: -bound, max: bound, decimalsInFloat: 1,
+        labels:{ style:{colors:'#666'}, formatter: v => v.toFixed(1) },
+        title:{text:'mV from avg', style:{color:'#555', fontSize:'11px'}}
+      },
+      dataLabels:{enabled:false},
+      grid:{ borderColor:'#1a1a1a', yaxis:{lines:{show:true}}, xaxis:{lines:{show:false}} },
+      theme:{mode:'dark'},
+      tooltip:{
+        theme:'dark',
+        x:{formatter: v => `Cell ${v}`},
+        y:{formatter: v => v.toFixed(2)+' mV'}
+      },
+      plotOptions:{bar:{borderRadius:1, columnWidth:'90%'}},
+      annotations:{ yaxis:[{ y:0, borderColor:'#555', strokeDashArray:3 }] }
+    });
+    cellDeviationChart.render();
+    deviationAxisNeedsUpdate = false;
+    return;
+  }
+
+  // Same range, just scrubbing — series only (color travels with each point), no axis/category
+  // config, no updateOptions call at all.
+  cellDeviationChart.updateSeries([{ name:'Deviation', data: points }], false);
+}
+
+let cellViewMode = 'heatmap'; // 'heatmap' | 'deviation'
+let lastCellData = null; // so switching modes re-renders instantly without waiting for the next tick/scrub
+
+function setCellViewMode(mode) {
+  cellViewMode = mode;
+  document.getElementById('cell-view-heatmap-btn').classList.toggle('active', mode === 'heatmap');
+  document.getElementById('cell-view-deviation-btn').classList.toggle('active', mode === 'deviation');
+  document.getElementById('cell-grid').style.display = mode === 'heatmap' ? '' : 'none';
+  document.getElementById('cell-deviation-chart').style.display = mode === 'deviation' ? '' : 'none';
+  if (lastCellData) renderCells(lastCellData);
+}
+
+// Single entry point for both live updates and slider scrubbing — computes shared stats once,
+// then dispatches to whichever visualization is currently selected.
+function renderCells(data) {
+  lastCellData = data;
+  const stats = computeCellStats(data);
+  if (!stats) return;
+  if (cellViewMode === 'heatmap') renderCellGrid(data, stats);
+  else renderCellDeviationChart(data, stats);
+}
+
+// ── Trend chart ──────────────────────────────────────────────────────────
+// SOC / charge power / cell delta across the selected period, with the slider's current position
+// shown via ApexCharts' own native hover crosshair + shared tooltip (see moveTrendMarker) — driven
+// by a synthetic mousemove rather than a custom overlay. Series data is built once per period
+// (cached alongside the cell-state cache); scrubbing only dispatches that synthetic event, never
+// touches the chart's series, so it stays instant.
+let trendChart = null;
+
+function ensureTrendChart() {
+  if (trendChart) return trendChart;
+  trendChart = new ApexCharts(document.getElementById('trend-chart'), {
+    chart: {
+      height: 220, background: 'transparent', toolbar: { show: false }, animations: { enabled: false }, zoom: { enabled: false },
+      // Lets hovering the trend chart drive the same "jump to this time" seek the slider does —
+      // the two are just two different ways of picking a moment, kept in sync via seekToTargetTime.
+      events: { mouseMove: onTrendChartHover },
+    },
+    series: [
+      { name: 'SOC %', data: [] },
+      { name: 'Cell Delta mV', data: [] },
+      { name: 'Charge Power W', data: [] },
+    ],
+    colors: ['#6ec62a', '#fbbf24', '#60a5fa'],
+    xaxis: {
+      type: 'datetime',
+      labels: { style: { colors: '#555' }, datetimeUTC: false },
+      axisBorder: { color: '#222' },
+      axisTicks: { color: '#222' },
+      crosshairs: { show: true, stroke: { color: '#e0e0e0', width: 1, dashArray: 0 } },
+    },
+    yaxis: [
+      { min: 0, max: 100, labels: { style: { colors: '#6ec62a' }, formatter: v => v.toFixed(0) + '%' }, title: { text: 'SOC %', style: { color: '#6ec62a', fontSize: '11px' } } },
+      { opposite: true, labels: { style: { colors: '#fbbf24' }, formatter: v => v.toFixed(0) }, title: { text: 'Delta mV', style: { color: '#fbbf24', fontSize: '11px' } } },
+      { show: false, labels: { formatter: v => v.toFixed(0) } },
+    ],
+    grid: { borderColor: '#1a1a1a' },
+    theme: { mode: 'dark' },
+    tooltip: { theme: 'dark', shared: true, x: { format: 'dd MMM HH:mm:ss' } },
+    stroke: { curve: 'smooth', width: 2 },
+    legend: { labels: { colors: '#888' }, fontSize: '11px' },
+    noData: { text: 'No data', style: { color: '#555' } },
+  });
+  trendChart.render();
+  return trendChart;
+}
+
+// Tracks the actual plotted data's time span (not the slider's theoretical range) — forcing
+// xaxis.min/max onto the chart to match the slider's range exactly was tried and reverted: it
+// fought with ApexCharts' own auto-scaling and squeezed all the real data into a sliver on the
+// left. Letting the chart auto-scale to its real data, then positioning the marker against that
+// same actual range, keeps the two always in agreement.
+let trendMinMs = null;
+let trendMaxMs = null;
+
+function setTrendData(samples) {
+  try {
+    const chart = ensureTrendChart();
+    const ts = s => new Date(s.readAt).getTime();
+    const times = samples.map(ts);
+    trendMinMs = times.length ? Math.min(...times) : null;
+    trendMaxMs = times.length ? Math.max(...times) : null;
+    chart.updateSeries([
+      { name: 'SOC %', data: samples.map(s => [ts(s), s.socPercent != null ? +s.socPercent : null]) },
+      { name: 'Cell Delta mV', data: samples.map(s => [ts(s), s.cellDeltaMv != null ? +s.cellDeltaMv : null]) },
+      { name: 'Charge Power W', data: samples.map(s => [ts(s), s.packPowerW != null ? +s.packPowerW : null]) },
+    ]);
+  } catch (err) {
+    console.error('Trend chart update failed:', err);
+  }
+}
+
+// ApexCharts has no public API for "show the tooltip/crosshair at this x value" — the standard
+// approach is dispatching a synthetic mousemove at the right pixel position, which drives its own
+// native hover handling exactly as if the mouse were actually there. Gives the crosshair line and
+// the shared tooltip (all three series' values) for free, instead of a custom line with nothing
+// in it.
+//
+// suppressChartHover guards against a feedback loop: the chart's own events.mouseMove (see
+// onTrendChartHover) now drives a seek too, and that synthetic dispatch below would otherwise
+// trigger it right back — slider drag -> moveTrendMarker -> synthetic mousemove -> hover handler
+// -> seek -> moveTrendMarker -> ... DOM events dispatched via dispatchEvent are handled
+// synchronously, so wrapping just this call is enough to suppress exactly that one echo.
+let suppressChartHover = false;
+
+function moveTrendMarker(targetMs) {
+  if (!trendChart || !trendChart.w || trendMinMs == null || trendMaxMs == null || trendMaxMs === trendMinMs) return;
+  const fraction = Math.max(0, Math.min(1, (targetMs - trendMinMs) / (trendMaxMs - trendMinMs)));
+  const left = trendChart.w.globals.translateX;
+  const width = trendChart.w.globals.gridWidth;
+  const svgTotalWidth = trendChart.w.globals.svgWidth;
+  if (left == null || width == null || !svgTotalWidth) return;
+
+  const svgEl = document.querySelector('#trend-chart .apexcharts-svg');
+  if (!svgEl) return;
+  const rect = svgEl.getBoundingClientRect();
+  // translateX/gridWidth are in the SVG's own internal coordinate system, which for a responsive
+  // chart (scaling to its container via CSS) isn't necessarily 1:1 with actual on-screen CSS
+  // pixels — a chart initially laid out narrower than its final rendered width bakes in exactly
+  // this kind of mismatch. Converting to fractions of the SVG's own total width first, then
+  // scaling by the real rendered rect, is correct regardless of any internal-vs-rendered ratio.
+  const gridLeftFraction = left / svgTotalWidth;
+  const gridWidthFraction = width / svgTotalWidth;
+  const clientX = rect.left + (gridLeftFraction + fraction * gridWidthFraction) * rect.width;
+  const clientY = rect.top + rect.height / 2;
+
+  suppressChartHover = true;
+  svgEl.dispatchEvent(new MouseEvent('mousemove', { clientX, clientY, bubbles: true, cancelable: true }));
+  suppressChartHover = false;
+}
+
+// ── Time Travel ───────────────────────────────────────────────────────────
+// Slider runs continuously (not per-snapshot) across whatever period is selected. Far right
+// means "now" and, as long as the selected period's end is genuinely "now" (the default last-24h
+// view, or the Today/This Week quick-selects), sitting at the far right keeps the page live —
+// exactly today's existing auto-refreshing behaviour, completely unchanged unless the slider is
+// actually moved. Dragging left — or picking a period that ends in the past (Yesterday, Last
+// Week, Last Month) — switches to historical mode.
+//
+// The whole period's data is fetched ONCE per range selection (baseline state + every sparse
+// change event since — see /api/cells/history-events) and cached here. Scrubbing the slider then
+// just replays cached events in-memory — no network round-trip per drag tick, so it's instant.
+const SLIDER_MAX = 1000;
+function startOfToday() {
+  const now = new Date();
+  return new Date(now.getFullYear(), now.getMonth(), now.getDate());
+}
+let rangeFrom = startOfToday();
+let rangeTo = new Date();
+let toIsNow = true;
+let liveTimer = null;
+let cachedBaseline = null;
+let cachedEvents = [];
+let cachedPackSamples = [];
+let trendNeedsRebuild = true;
+// Worst-case |deviation from pack average| actually seen anywhere across the whole cached period
+// — computed once per range load (see loadRangeCache), not per scrub tick, so the deviation
+// chart's y-axis can be fixed to a bound that covers everything the user could scrub to instead
+// of auto-rescaling (and visually jumping) on every tick.
+let cachedMaxAbsDeviationMv = 20;
+let deviationAxisNeedsUpdate = true;
+
+// One-time replay of the whole cached period (not per-frame) — recomputes the pack average and
+// every cell's deviation from it after each event, tracking the largest |deviation| seen at any
+// point in the period.
+function computeMaxAbsDeviationMv() {
+  if (!cachedBaseline) return 20;
+  const voltages = { ...cachedBaseline.cellVoltages };
+  let maxAbs = 0;
+
+  const scan = () => {
+    const vals = Object.values(voltages).map(Number);
+    if (!vals.length) return;
+    const avg = vals.reduce((s, v) => s + v, 0) / vals.length;
+    for (const v of vals) {
+      const dev = Math.abs((v - avg) * 1000);
+      if (dev > maxAbs) maxAbs = dev;
+    }
+  };
+
+  scan(); // baseline
+  for (const e of cachedEvents) {
+    voltages[e.cellNo] = e.voltageV;
+    scan();
+  }
+  return maxAbs;
+}
+
+function niceAxisBound(maxAbs) {
+  const padded = Math.max(maxAbs * 1.15, 5); // at least ±5mV of headroom even on a near-perfectly balanced pack
+  return Math.ceil(padded / 5) * 5; // round up to a clean 5mV increment
+}
+
+function pad2(n) { return String(n).padStart(2, '0'); }
+
+function toDateTimeLocalValue(d) {
+  return `${d.getFullYear()}-${pad2(d.getMonth() + 1)}-${pad2(d.getDate())}T${pad2(d.getHours())}:${pad2(d.getMinutes())}`;
+}
+
+// Date.toISOString() always converts to UTC — but every timestamp elsewhere in this system
+// (the database, DateTime.Now server-side, these very datetime-local inputs) is unzoned local
+// time. Using toISOString() for the history API calls shifted every range by the local UTC
+// offset (multiple hours), which is what made "yesterday" pull in data from two days ago. This
+// keeps the wall-clock values exactly as displayed, matching what the server actually expects.
+function toLocalIsoString(d) {
+  return `${d.getFullYear()}-${pad2(d.getMonth() + 1)}-${pad2(d.getDate())}T${pad2(d.getHours())}:${pad2(d.getMinutes())}:${pad2(d.getSeconds())}`;
+}
+
+function computeTargetTime(sliderValue) {
+  const fromMs = rangeFrom.getTime();
+  const toMs = toIsNow ? Date.now() : rangeTo.getTime();
+  return new Date(fromMs + (sliderValue / SLIDER_MAX) * (toMs - fromMs));
+}
+
+// Replays cached events from the period's baseline up to targetTime — pure in-memory, no fetch.
+// Events are already time-ordered (from the SQL ORDER BY), so this can stop as soon as it passes
+// the target instead of always scanning the whole cached period.
+function computeStateAt(targetTime) {
+  if (!cachedBaseline) return null;
+  const targetMs = targetTime.getTime();
+  const voltages = { ...cachedBaseline.cellVoltages };
+  const balancing = { ...cachedBaseline.cellBalancing };
+  for (const e of cachedEvents) {
+    if (e.readAtMs > targetMs) break;
+    voltages[e.cellNo] = e.voltageV;
+    if (e.balancingActive !== null && e.balancingActive !== undefined) balancing[e.cellNo] = e.balancingActive;
+  }
+  return { cellVoltages: voltages, cellBalancing: balancing };
+}
+
+function setViewingLabel(time, live, loading) {
+  const el = document.getElementById('viewing-mode');
+  if (loading) {
+    el.textContent = 'Loading…';
+    el.className = 'ml pill info';
+    return;
+  }
+  if (live) {
+    el.textContent = 'LIVE';
+    el.className = 'ml pill ok';
+    document.getElementById('ts').textContent = 'Updated ' + new Date().toLocaleTimeString();
+  } else {
+    el.textContent = 'Viewing history';
+    el.className = 'ml pill info';
+    document.getElementById('ts').textContent = 'Viewing ' + time.toLocaleString();
+  }
+}
+
+function stopLiveTimer() {
+  if (liveTimer) { clearInterval(liveTimer); liveTimer = null; }
+}
+
+function startLiveTimer() {
+  stopLiveTimer();
+  liveTimer = setInterval(loadLive, 10000);
+}
+
+async function loadLive() {
+  const d = await fetch('/api/live').then(r => r.ok ? r.json() : null).catch(() => null);
+  if (d) renderCells(d);
+  setViewingLabel(new Date(), true);
+  document.getElementById('slider-current-label').textContent = 'Now';
+}
+
+// Fetches the whole selected period once and caches it — see computeStateAt for the replay.
+async function loadRangeCache() {
+  const slider = document.getElementById('time-slider');
+  slider.disabled = true;
+  setViewingLabel(null, false, true);
+
+  const toParam = toIsNow ? new Date() : rangeTo;
+  const [cellData, packSamples] = await Promise.all([
+    fetch(`/api/cells/history-events?from=${encodeURIComponent(toLocalIsoString(rangeFrom))}&to=${encodeURIComponent(toLocalIsoString(toParam))}`)
+      .then(r => r.ok ? r.json() : null).catch(() => null),
+    // maxPoints: the trend chart is purely visual, so it doesn't need every raw sample — a full
+    // day unsampled was measured taking ~30s to query.
+    fetch(`/api/pack/history-range?from=${encodeURIComponent(toLocalIsoString(rangeFrom))}&to=${encodeURIComponent(toLocalIsoString(toParam))}&maxPoints=500`)
+      .then(r => r.ok ? r.json() : null).catch(() => null),
+  ]);
+
+  slider.disabled = false;
+  cachedBaseline = cellData?.baseline ?? null;
+  cachedEvents = (cellData?.events ?? []).map(e => ({ ...e, readAtMs: new Date(e.readAt).getTime() }));
+  // Deliberately NOT building the chart here — the trend card is still hidden at this point
+  // (default/live view), and rendering a chart into a display:none container gives it a
+  // zero-width layout that breaks its axis scaling. Built lazily the first time it's actually
+  // shown instead (see onSliderInput).
+  cachedPackSamples = packSamples ?? [];
+  trendNeedsRebuild = true;
+  cachedMaxAbsDeviationMv = computeMaxAbsDeviationMv();
+  deviationAxisNeedsUpdate = true; // apply the new bound next time the deviation chart renders, not mid-scrub
+}
+
+// Fills everything left of the thumb with a lighter green and everything right of it with black
+// — cheap (just a CSS background string), so it updates on every single 'input' event with no
+// throttling, unlike the expensive grid/chart work below.
+function updateSliderFill() {
+  const slider = document.getElementById('time-slider');
+  const pct = (Number(slider.value) / SLIDER_MAX) * 100;
+  slider.style.background = `linear-gradient(to right, #8fe05a 0%, #8fe05a ${pct}%, #000 ${pct}%, #000 100%)`;
+}
+
+// Caching made the underlying data lookup instant, but a fast drag still fires far more
+// 'input' events than the browser can usefully repaint (rebuilding all 108 cell tiles' HTML on
+// every single one causes visible stutter). Throttling to one update per animation frame matches
+// the browser's actual repaint rate — strictly more responsive than a fixed debounce, and it's
+// what removes the chunkiness while staying effectively instant.
+let pendingFrame = null;
+
+// Shared by both ways of picking a moment — dragging the slider and hovering the trend chart.
+// Updates the cell view, the trend chart's own crosshair, the viewing-mode label, AND the
+// slider's thumb position (so whichever control you didn't just use visually catches up too) —
+// the two are just alternate inputs to the same "jump to this time" action.
+function seekToTargetTime(target) {
+  document.getElementById('slider-current-label').textContent = target.toLocaleString();
+  moveTrendMarker(target.getTime());
+  const state = computeStateAt(target);
+  if (state) renderCells(state);
+  setViewingLabel(target, false);
+
+  const fromMs = rangeFrom.getTime();
+  const toMs = toIsNow ? Date.now() : rangeTo.getTime();
+  if (toMs > fromMs) {
+    const val = Math.round(((target.getTime() - fromMs) / (toMs - fromMs)) * SLIDER_MAX);
+    document.getElementById('time-slider').value = Math.max(0, Math.min(SLIDER_MAX, val));
+    updateSliderFill();
+  }
+}
+
+// Reveals the trend card and stops live polling — the shared setup both the slider (moving off
+// its live end) and hovering the trend chart (only possible once it's already visible, but cheap
+// to call defensively either way) need before a seek actually makes sense.
+function enterHistoricalView() {
+  document.getElementById('trend-card').style.display = '';
+  const justRebuilt = trendNeedsRebuild;
+  if (trendNeedsRebuild) {
+    setTrendData(cachedPackSamples);
+    trendNeedsRebuild = false;
+  }
+  stopLiveTimer();
+  return justRebuilt;
+}
+
+function onSliderInput() {
+  const slider = document.getElementById('time-slider');
+  const val = Number(slider.value);
+  updateSliderFill();
+
+  if (toIsNow && val === SLIDER_MAX) {
+    if (pendingFrame) { cancelAnimationFrame(pendingFrame); pendingFrame = null; }
+    document.getElementById('trend-card').style.display = 'none';
+    stopLiveTimer();
+    loadLive();
+    startLiveTimer();
+    return;
+  }
+
+  const justRebuilt = enterHistoricalView();
+
+  const doUpdate = () => {
+    pendingFrame = null;
+    seekToTargetTime(computeTargetTime(val));
+  };
+
+  if (pendingFrame) cancelAnimationFrame(pendingFrame);
+  if (justRebuilt) {
+    // ApexCharts doesn't finish laying out synchronously after updateSeries — reading its
+    // internal gridWidth/translateX (used by moveTrendMarker) right away can return stale values
+    // from before the new data existed, which looked like the marker/cursor only responding
+    // across a fraction of the chart. Give it a couple of frames to settle first, but only on
+    // this first render after a rebuild — every scrub after that uses the normal single-frame
+    // throttle since there's no fresh layout to wait for.
+    requestAnimationFrame(() => { pendingFrame = requestAnimationFrame(doUpdate); });
+  } else {
+    pendingFrame = requestAnimationFrame(doUpdate);
+  }
+}
+
+// The trend chart's own dataPointIndex tells us exactly which cached pack sample the mouse is
+// nearest to — reusing that instead of hit-testing pixel position ourselves. Shares the slider's
+// own RAF throttle (pendingFrame) rather than a separate one, so a hover and a drag can never
+// both be mid-flight fighting over the same DOM at once.
+function onTrendChartHover(event, chartContext, config) {
+  if (suppressChartHover) return; // this is our own synthetic event from moveTrendMarker, not a real hover
+  const idx = config?.dataPointIndex;
+  if (idx == null || idx < 0 || !cachedPackSamples[idx]) return;
+
+  enterHistoricalView(); // no-op beyond stopLiveTimer() if already in historical view (usually the case — see comment on ensureTrendChart's events.mouseMove)
+
+  if (pendingFrame) cancelAnimationFrame(pendingFrame);
+  pendingFrame = requestAnimationFrame(() => {
+    pendingFrame = null;
+    seekToTargetTime(new Date(cachedPackSamples[idx].readAt));
+  });
+}
+
+async function applyRange(from, to, isNow) {
+  rangeFrom = from;
+  rangeTo = to;
+  toIsNow = isNow;
+  document.getElementById('range-from').value = toDateTimeLocalValue(from);
+  document.getElementById('range-to').value = toDateTimeLocalValue(isNow ? new Date() : to);
+  document.getElementById('slider-from-label').textContent = from.toLocaleString();
+  document.getElementById('slider-to-label').textContent = isNow ? 'Now' : to.toLocaleString();
+  document.getElementById('time-slider').value = SLIDER_MAX;
+  updateSliderFill();
+
+  await loadRangeCache();
+  onSliderInput();
+}
+
+function mondayOf(d) {
+  const day = (d.getDay() + 6) % 7; // Monday = 0
+  return new Date(d.getFullYear(), d.getMonth(), d.getDate() - day);
+}
+
+function setActiveQuickButton(kind) {
+  document.querySelectorAll('.quick-btn').forEach(btn =>
+    btn.classList.toggle('active', btn.dataset.range === kind));
+}
+
+function setQuickRange(kind) {
+  const now = new Date();
+  const today = startOfToday();
+  switch (kind) {
+    case 'today':
+      applyRange(today, now, true);
+      break;
+    case 'yesterday': {
+      const y = new Date(today); y.setDate(y.getDate() - 1);
+      applyRange(y, today, false);
+      break;
+    }
+    // Live (ends at now, like Today) rather than fixed to a whole-day boundary — "last N days"
+    // reads as "the trailing window up to right now", not "yesterday and the day before".
+    case 'last2days': {
+      const from = new Date(today); from.setDate(from.getDate() - 1);
+      applyRange(from, now, true);
+      break;
+    }
+    case 'last3days': {
+      const from = new Date(today); from.setDate(from.getDate() - 2);
+      applyRange(from, now, true);
+      break;
+    }
+    case 'thisweek':
+      applyRange(mondayOf(now), now, true);
+      break;
+    case 'lastweek': {
+      const thisMonday = mondayOf(now);
+      const lastMonday = new Date(thisMonday); lastMonday.setDate(lastMonday.getDate() - 7);
+      applyRange(lastMonday, thisMonday, false);
+      break;
+    }
+    case 'lastmonth': {
+      const from = new Date(now.getFullYear(), now.getMonth() - 1, 1);
+      const to = new Date(now.getFullYear(), now.getMonth(), 1);
+      applyRange(from, to, false);
+      break;
+    }
+  }
+  setActiveQuickButton(kind);
+}
+
+function onManualRangeChange() {
+  const fromVal = document.getElementById('range-from').value;
+  const toVal = document.getElementById('range-to').value;
+  if (!fromVal || !toVal) return;
+  setActiveQuickButton(null); // a manual edit no longer matches any quick-select exactly
+  applyRange(new Date(fromVal), new Date(toVal), false);
+}
+
+document.getElementById('time-slider').addEventListener('input', onSliderInput);
+document.getElementById('range-from').addEventListener('change', onManualRangeChange);
+document.getElementById('range-to').addEventListener('change', onManualRangeChange);
+document.querySelectorAll('.quick-btn').forEach(btn =>
+  btn.addEventListener('click', () => setQuickRange(btn.dataset.range)));
+
+// Default view: today, slider at far right — identical to the page's previous always-live
+// behaviour until the user actually touches the slider or range controls. The period cache loads
+// in the background (today's data auto-loads without needing to touch anything) so scrubbing is
+// instant the moment the slider is touched.
+document.getElementById('range-from').value = toDateTimeLocalValue(rangeFrom);
+document.getElementById('range-to').value = toDateTimeLocalValue(rangeTo);
+document.getElementById('slider-from-label').textContent = rangeFrom.toLocaleString();
+document.getElementById('slider-to-label').textContent = 'Now';
+setActiveQuickButton('today');
+updateSliderFill();
+loadLive();
+startLiveTimer();
+loadRangeCache();
+
+// Battery Balancing depends entirely on the fake meter — hide its nav link when disabled.
+fetch('/api/froniusmeter/status').then(r => r.ok ? r.json() : null).catch(() => null).then(d => {
+  document.getElementById('nav-battery-balancing').style.display = d && d.enabled ? '' : 'none';
+});
+</script>
+</body>
+</html>

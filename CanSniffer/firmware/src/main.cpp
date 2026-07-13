@@ -1,7 +1,7 @@
 // LilyGO T-CAN485 — CAN bus sniffer.
 //
 // Passively listens to the CAN bus between the battery and the Battery-Emulator and forwards
-// every frame to BatteryEMU over UDP for logging. Never transmits onto the bus — see the
+// every frame to CellWatcher over UDP for logging. Never transmits onto the bus — see the
 // TWAI_MODE_LISTEN_ONLY note in canSetup() for why that matters here.
 //
 // No network configuration is compiled in anywhere:
@@ -12,7 +12,7 @@
 //     one-shot captive-portal flow.
 //   - The server's address isn't configured either — it's *learned* via a small discovery
 //     handshake (see discoveryLoop()): this device broadcasts an announce on DISCOVERY_PORT,
-//     BatteryEMU's CanSnifferDiscoveryService replies directly to the sender, and that reply's
+//     CellWatcher's CanSnifferDiscoveryService replies directly to the sender, and that reply's
 //     source address becomes where CAN frame batches get sent.
 //
 // Wire format for the CAN data channel (see ../README.md for the authoritative spec): each UDP
@@ -44,7 +44,7 @@
 static CRGB statusLed[1];
 
 static const char *kAnnounceMessage = "CANSNIFFER-HELLO";
-static const char *kServerReplyPrefix = "BATTERYEMU-HELLO";
+static const char *kServerReplyPrefix = "CELLWATCHER-HELLO";
 
 static WiFiUDP canDataUdp;
 static WiFiUDP discoveryUdp;
@@ -115,8 +115,8 @@ static void discoveryLoop() {
 
     // Keeps announcing even after being discovered (at a slower cadence) rather than going
     // silent forever on first success — the server's discovery state is in-memory only, so a
-    // BatteryEMU restart wipes it with no way to notice unless this device eventually says hello
-    // again on its own. This is also what lets it pick up a new server address if BatteryEMU
+    // CellWatcher restart wipes it with no way to notice unless this device eventually says hello
+    // again on its own. This is also what lets it pick up a new server address if CellWatcher
     // ever moves to a different IP, not just fill in a blank the first time.
     static uint32_t lastAnnounceMs = 0;
     uint32_t announceInterval = serverIpKnown ? DISCOVERY_KEEPALIVE_INTERVAL_MS : DISCOVERY_ANNOUNCE_INTERVAL_MS;
@@ -139,7 +139,7 @@ static void discoveryLoop() {
             if (!serverIpKnown || replyIp != serverIp) {
                 serverIp = replyIp;
                 serverIpKnown = true;
-                Serial.printf("Discovered BatteryEMU server at %s — CAN data forwarding starts now.\n",
+                Serial.printf("Discovered CellWatcher server at %s — CAN data forwarding starts now.\n",
                               serverIp.toString().c_str());
             }
         }
