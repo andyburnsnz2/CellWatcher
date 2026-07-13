@@ -1,0 +1,427 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>CellWatcher — Canbus</title>
+<link rel="icon" href="/img/cellkeeper.png">
+<style>
+*,*::before,*::after{box-sizing:border-box}
+html{overflow-y:scroll}
+body{margin:0;background:#000;color:#e0e0e0;font-family:system-ui,-apple-system,sans-serif;font-size:14px;line-height:1.5}
+a{text-decoration:none}
+nav{background:#111;border-bottom:1px solid #222;position:sticky;top:0;z-index:100}
+.nav-inner{max-width:1400px;margin:0 auto;padding:0 1.5rem;height:96px;display:flex;align-items:center;gap:1rem}
+.brand-logo{height:80px;width:80px;border-radius:14px;flex-shrink:0;border:2px solid rgba(110,198,42,.7);box-shadow:0 0 28px rgba(110,198,42,.75),0 0 8px rgba(110,198,42,1),0 0 50px rgba(110,198,42,.25)}
+.brand{color:#6ec62a;font-weight:700;font-size:1.2rem;margin-right:.25rem}
+.nav-inner a{color:#888;padding:.25rem .6rem;border-radius:4px;font-size:.85rem}
+.nav-inner a:hover,.nav-inner a.on{background:#222;color:#f0f0f0}
+.ml{margin-left:auto}
+.page{max-width:1400px;margin:0 auto;padding:1.25rem}
+.card{background:#111;border:1px solid #222;border-radius:8px;padding:1.25rem;margin-bottom:1rem}
+.section-head{font-size:.75rem;text-transform:uppercase;letter-spacing:.08em;color:#6ec62a;font-weight:600;margin-bottom:1rem;padding-bottom:.5rem;border-bottom:1px solid #222}
+.muted{color:#555}
+.btn{padding:.45rem 1.25rem;border-radius:5px;border:none;cursor:pointer;font-size:.85rem;font-weight:600;transition:all .15s}
+.btn:disabled{opacity:.4;cursor:default}
+.btn-primary{background:#4a9e1a;color:#fff}
+.btn-primary:hover{background:#6ec62a;color:#000}
+.btn-stop{background:#3b0404;color:#f87171}
+.btn-stop:hover{background:#5a0808}
+.btn-danger{background:#0a0a0a;border:1px solid #dc2626;color:#f87171}
+.btn-danger:hover{background:#3b0404}
+.btn-sm{padding:.25rem .7rem;font-size:.72rem}
+.pill{display:inline-flex;align-items:center;padding:.15rem .55rem;border-radius:999px;font-size:.68rem;font-weight:600}
+.ok{background:#0a2008;color:#6ec62a}
+.info{background:#0c1a4a;color:#60a5fa}
+.alert{background:#3b0404;color:#f87171}
+.status-grid{display:grid;grid-template-columns:repeat(4,1fr);gap:1rem;margin-bottom:1rem}
+.status-tile{background:#000;border:1px solid #222;border-radius:6px;padding:.85rem}
+.status-tile-label{font-size:.68rem;text-transform:uppercase;letter-spacing:.06em;color:#555;margin-bottom:.35rem}
+.status-tile-value{font-size:1.15rem;font-weight:700}
+.toast{position:fixed;bottom:1.5rem;right:1.5rem;padding:.75rem 1.25rem;border-radius:6px;font-size:.85rem;font-weight:500;opacity:0;transform:translateY(.5rem);transition:all .25s;pointer-events:none;z-index:999}
+.toast.show{opacity:1;transform:translateY(0)}
+.toast.success{background:#0a2008;color:#6ec62a;border:1px solid #3a7a19}
+.toast.error{background:#3b0404;color:#f87171;border:1px solid #dc2626}
+.table-wrap{overflow-x:auto;max-height:520px}
+table.data{width:100%;border-collapse:collapse;font-size:.8rem}
+table.data th{text-align:left;font-size:.68rem;text-transform:uppercase;letter-spacing:.05em;color:#555;padding:.4rem .6rem;border-bottom:1px solid #222;white-space:nowrap;position:sticky;top:0;background:#111}
+table.data td{padding:.4rem .6rem;border-bottom:1px solid #1a1a1a;white-space:nowrap}
+table.data tr:last-child td{border-bottom:none}
+td.mono{font-family:ui-monospace,Consolas,monospace}
+.view-toggle{display:inline-flex;border:1px solid #222;border-radius:5px;overflow:hidden}
+.view-toggle button{padding:.3rem .8rem;font-size:.75rem;font-weight:600;border:none;background:#0a0a0a;color:#888;cursor:pointer}
+.view-toggle button.active{background:#1a3a0a;color:#6ec62a}
+.view-toggle button:not(:last-child){border-right:1px solid #222}
+.filter-toggle{display:inline-flex;align-items:center;gap:.35rem;font-size:.78rem;color:#ccc;cursor:pointer}
+.decoded-signal{font-family:ui-monospace,Consolas,monospace;font-size:.72rem;color:#9fdb6a;display:block}
+.decoded-signal-field{color:#6ec62a}
+.id-filter{position:relative}
+.id-filter-btn{background:#0a0a0a;border:1px solid #222;color:#ccc;padding:.3rem .7rem;border-radius:5px;font-size:.75rem;cursor:pointer}
+.id-filter-btn:hover{border-color:#555}
+.id-filter-panel{display:none;position:absolute;top:calc(100% + .3rem);left:0;background:#111;border:1px solid #222;border-radius:6px;box-shadow:0 8px 24px rgba(0,0,0,.5);width:280px;z-index:50}
+.id-filter-panel.open{display:block}
+.id-filter-actions{display:flex;gap:.5rem;padding:.5rem;border-bottom:1px solid #222}
+.id-filter-actions button{flex:1;background:#0a0a0a;border:1px solid #333;color:#ccc;padding:.3rem;border-radius:4px;font-size:.7rem;cursor:pointer}
+.id-filter-actions button:hover{border-color:#555}
+.id-filter-list{max-height:280px;overflow-y:auto;padding:.3rem}
+.id-filter-item{display:flex;align-items:center;gap:.5rem;padding:.3rem .4rem;font-size:.75rem;border-radius:4px;cursor:pointer}
+.id-filter-item:hover{background:#1a1a1a}
+.id-filter-item .mono{font-family:ui-monospace,Consolas,monospace;color:#6ec62a;flex-shrink:0}
+.id-filter-item .fname{color:#999;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.id-filter-empty{padding:.75rem;font-size:.75rem;color:#555}
+</style>
+</head>
+<body>
+<nav>
+  <div class="nav-inner">
+    <img src="/img/cellkeeper.png" class="brand-logo" alt="CellWatcher">
+    <span class="brand">CellWatcher</span>    <a href="/">Dashboard</a>
+    <a href="/cells.html">Cells</a>
+    <a href="/history.html">History</a>
+    <a href="/health.html">Health</a>
+    <a href="/battery-balancing.html" id="nav-battery-balancing">Battery Balancing</a>
+    <a href="/canbus.html" class="on">Canbus</a>
+    <a href="/config.html">Config</a>
+    <span class="ml muted" id="ts" style="font-size:.75rem"></span>
+  </div>
+</nav>
+<div class="page">
+
+  <div class="card">
+    <div class="section-head">Logging Control</div>
+    <div class="status-grid">
+      <div class="status-tile">
+        <div class="status-tile-label">State</div>
+        <div class="status-tile-value"><span class="pill" id="status-state">—</span></div>
+      </div>
+      <div class="status-tile">
+        <div class="status-tile-label">Sniffer Device</div>
+        <div class="status-tile-value" id="status-device" style="font-size:.9rem;font-weight:500">—</div>
+      </div>
+      <div class="status-tile">
+        <div class="status-tile-label">Current Session Frames</div>
+        <div class="status-tile-value" id="status-frame-count">—</div>
+      </div>
+      <div class="status-tile">
+        <div class="status-tile-label">Identified</div>
+        <div class="status-tile-value" id="status-identified-pct">—</div>
+        <div class="muted" id="status-identified-counts" style="font-size:.7rem;margin-top:.15rem">—</div>
+      </div>
+    </div>
+    <button type="button" class="btn btn-primary" id="start-btn" onclick="startLogging()">Start Logging</button>
+    <button type="button" class="btn btn-stop" id="stop-btn" onclick="stopLogging()" style="display:none">Stop Logging</button>
+  </div>
+
+  <div class="card">
+    <div class="section-head" style="display:flex;align-items:center;gap:1.25rem;flex-wrap:wrap;text-transform:none;letter-spacing:0;font-size:.8rem;color:#e0e0e0;border-bottom:none;padding-bottom:0;margin-bottom:.75rem">
+      <span style="text-transform:uppercase;letter-spacing:.08em;font-size:.75rem;color:#6ec62a;font-weight:600">Live Frames (last 100, newest first)</span>
+      <div class="view-toggle">
+        <button type="button" class="active" id="view-raw-btn" onclick="setViewMode('raw')">Raw</button>
+        <button type="button" id="view-decoded-btn" onclick="setViewMode('decoded')">Decoded</button>
+      </div>
+      <label class="filter-toggle"><input type="checkbox" id="filter-identified" checked onchange="loadFrames()"> Identified</label>
+      <label class="filter-toggle"><input type="checkbox" id="filter-unidentified" checked onchange="loadFrames()"> Unidentified</label>
+      <div class="id-filter">
+        <button type="button" class="id-filter-btn" id="id-filter-btn" onclick="toggleIdFilterPanel()">Filter Identified IDs ▾</button>
+        <div class="id-filter-panel" id="id-filter-panel">
+          <div class="id-filter-actions">
+            <button type="button" onclick="setAllIdFilters(true)">Select All</button>
+            <button type="button" onclick="setAllIdFilters(false)">Clear All</button>
+          </div>
+          <div class="id-filter-list" id="id-filter-list"></div>
+        </div>
+      </div>
+      <label class="filter-toggle" id="nonzero-toggle-label" style="display:none"><input type="checkbox" id="filter-nonzero" checked onchange="loadFrames()"> Non-zero signals only</label>
+    </div>
+    <div class="table-wrap">
+      <table class="data">
+        <thead id="frames-thead">
+          <tr><th>Received</th><th>CAN ID</th><th>Ext</th><th>DLC</th><th>Data</th></tr>
+        </thead>
+        <tbody id="frames-rows"></tbody>
+      </table>
+      <div class="muted" id="frames-empty" style="padding:.75rem;display:none">No frames yet — start logging to see them here.</div>
+    </div>
+  </div>
+
+  <div class="card">
+    <div class="section-head" style="display:flex;align-items:center;gap:1rem">
+      <span>Recorded Sessions</span>
+      <button type="button" class="btn btn-danger btn-sm ml" onclick="deleteAllSessions()">Delete All</button>
+    </div>
+    <div class="table-wrap" style="max-height:360px">
+      <table class="data">
+        <thead>
+          <tr><th>Session</th><th>Started</th><th>Stopped</th><th>Frames</th><th></th></tr>
+        </thead>
+        <tbody id="sessions-rows"></tbody>
+      </table>
+      <div class="muted" id="sessions-empty" style="padding:.75rem;display:none">No sessions recorded yet.</div>
+    </div>
+  </div>
+
+</div>
+
+<div class="toast" id="toast"></div>
+
+<script>
+function showToast(msg, type) {
+  const t = document.getElementById('toast');
+  t.textContent = msg;
+  t.className = 'toast show ' + type;
+  setTimeout(() => t.classList.remove('show'), 3500);
+}
+
+function formatDateTime(iso) {
+  return iso ? new Date(iso).toLocaleString() : '—';
+}
+
+let isRecording = false;
+
+async function loadStatus() {
+  const s = await fetch('/api/can-sniffer/status').then(r => r.ok ? r.json() : null).catch(() => null);
+  if (!s) return;
+
+  isRecording = s.isRecording;
+  const stateEl = document.getElementById('status-state');
+  if (isRecording) {
+    stateEl.textContent = 'RECORDING';
+    stateEl.className = 'pill alert';
+  } else {
+    stateEl.textContent = 'Stopped';
+    stateEl.className = 'pill ok';
+  }
+
+  const deviceEl = document.getElementById('status-device');
+  if (s.deviceIp) {
+    const ageSeconds = (Date.now() - new Date(s.lastSeenAt).getTime()) / 1000;
+    const age = ageSeconds < 60 ? `${Math.round(ageSeconds)}s ago` : ageSeconds < 3600 ? `${Math.round(ageSeconds/60)}m ago` : `${Math.round(ageSeconds/3600)}h ago`;
+    deviceEl.textContent = `${s.deviceIp} (seen ${age})`;
+  } else {
+    deviceEl.textContent = 'Not discovered yet';
+  }
+
+  document.getElementById('status-frame-count').textContent = s.frameCount != null ? s.frameCount : '—';
+
+  document.getElementById('start-btn').style.display = isRecording ? 'none' : '';
+  document.getElementById('stop-btn').style.display = isRecording ? '' : 'none';
+
+  document.getElementById('ts').textContent = 'Updated ' + new Date().toLocaleTimeString();
+}
+
+async function startLogging() {
+  const res = await fetch('/api/can-sniffer/sessions/start', { method: 'POST' });
+  const d = await res.json().catch(() => null);
+  if (res.ok) { showToast('✓ Logging started', 'success'); loadStatus(); loadFrames(); }
+  else showToast('✗ ' + (d?.message || 'Failed to start'), 'error');
+}
+
+async function stopLogging() {
+  const res = await fetch('/api/can-sniffer/sessions/stop', { method: 'POST' });
+  const d = await res.json().catch(() => null);
+  if (res.ok) { showToast('✓ Logging stopped', 'success'); loadStatus(); loadSessions(); }
+  else showToast('✗ ' + (d?.message || 'Failed to stop'), 'error');
+}
+
+let viewMode = 'raw'; // 'raw' | 'decoded'
+
+function setViewMode(mode) {
+  viewMode = mode;
+  document.getElementById('view-raw-btn').classList.toggle('active', mode === 'raw');
+  document.getElementById('view-decoded-btn').classList.toggle('active', mode === 'decoded');
+
+  const thead = document.getElementById('frames-thead');
+  thead.innerHTML = mode === 'raw'
+    ? '<tr><th>Received</th><th>CAN ID</th><th>DLC</th><th>Data</th></tr>'
+    : '<tr><th>Received</th><th>CAN ID</th><th>Status</th><th>Frame Name</th><th>Decoded Signals</th></tr>';
+
+  document.getElementById('nonzero-toggle-label').style.display = mode === 'decoded' ? '' : 'none';
+
+  loadFrames();
+}
+
+function escapeHtml(s) {
+  return String(s).replace(/[&<>"']/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
+}
+
+let idFilterAllIds = []; // every CAN ID known for the selected battery
+let idFilterSelected = new Set(); // currently checked subset — defaults to "all"
+
+async function loadIdFilterOptions() {
+  const listEl = document.getElementById('id-filter-list');
+  const sel = await fetch('/api/battery-types/selection').then(r => r.ok ? r.json() : null).catch(() => null);
+  if (!sel || sel.selectedBatteryTypeId == null) {
+    idFilterAllIds = [];
+    idFilterSelected = new Set();
+    listEl.innerHTML = '<div class="id-filter-empty">No battery selected — set one in Config first.</div>';
+    return;
+  }
+
+  const mappings = await fetch(`/api/battery-types/${sel.selectedBatteryTypeId}/mappings`).then(r => r.ok ? r.json() : []).catch(() => []);
+  idFilterAllIds = mappings.map(m => m.canId);
+  idFilterSelected = new Set(idFilterAllIds);
+
+  if (!mappings.length) {
+    listEl.innerHTML = '<div class="id-filter-empty">No mappings imported for this battery yet.</div>';
+    return;
+  }
+
+  listEl.innerHTML = mappings.map(m => `
+    <label class="id-filter-item">
+      <input type="checkbox" data-can-id="${m.canId}" checked onchange="onIdFilterChange()">
+      <span class="mono">0x${m.canIdHex}</span>
+      <span class="fname">${escapeHtml(m.frameName || '')}</span>
+    </label>`).join('');
+}
+
+function onIdFilterChange() {
+  idFilterSelected = new Set(
+    Array.from(document.querySelectorAll('#id-filter-list input:checked')).map(el => Number(el.dataset.canId))
+  );
+  loadFrames();
+}
+
+function setAllIdFilters(checked) {
+  document.querySelectorAll('#id-filter-list input').forEach(el => { el.checked = checked; });
+  onIdFilterChange();
+}
+
+function toggleIdFilterPanel() {
+  document.getElementById('id-filter-panel').classList.toggle('open');
+}
+
+// Close the dropdown when clicking anywhere outside it.
+document.addEventListener('click', e => {
+  if (!document.querySelector('.id-filter').contains(e.target)) {
+    document.getElementById('id-filter-panel').classList.remove('open');
+  }
+});
+
+async function loadStats() {
+  const s = await fetch('/api/can-sniffer/live-stats').then(r => r.ok ? r.json() : null).catch(() => null);
+  const pctEl = document.getElementById('status-identified-pct');
+  const countsEl = document.getElementById('status-identified-counts');
+  if (!s || s.total === 0) {
+    pctEl.textContent = '—';
+    countsEl.textContent = '—';
+    return;
+  }
+  pctEl.textContent = `${s.identifiedPercent}%`;
+  countsEl.textContent = `${s.identified} / ${s.total} frames`;
+}
+
+async function loadFrames() {
+  const showIdentified = document.getElementById('filter-identified').checked;
+  const showUnidentified = document.getElementById('filter-unidentified').checked;
+
+  const rowsEl = document.getElementById('frames-rows');
+  const emptyEl = document.getElementById('frames-empty');
+
+  if (!showIdentified && !showUnidentified) {
+    rowsEl.innerHTML = '';
+    emptyEl.textContent = 'Both Identified and Unidentified are off — nothing to show.';
+    emptyEl.style.display = '';
+    return;
+  }
+
+  // Server-side filter only supports a single boolean — when both checkboxes are on that means
+  // "no filter" (fetch everything); when only one is on, pass its value through.
+  let url = '/api/can-sniffer/live-frames?limit=100';
+  if (showIdentified !== showUnidentified) url += `&identified=${showIdentified}`;
+  if (idFilterAllIds.length > 0 && idFilterSelected.size < idFilterAllIds.length) {
+    url += `&canIds=${Array.from(idFilterSelected).join(',')}`;
+  }
+
+  const frames = await fetch(url).then(r => r.ok ? r.json() : []).catch(() => []);
+
+  if (!frames.length) {
+    rowsEl.innerHTML = '';
+    emptyEl.textContent = 'No frames yet — start logging to see them here.';
+    emptyEl.style.display = '';
+    return;
+  }
+  emptyEl.style.display = 'none';
+
+  rowsEl.innerHTML = frames.map(f => {
+    const dataHexSpaced = f.dataHex.match(/.{1,2}/g)?.join(' ') || '';
+    if (viewMode === 'raw') {
+      return `<tr>
+        <td>${new Date(f.receivedAt).toLocaleTimeString()}</td>
+        <td class="mono">0x${f.canIdHex}</td>
+        <td>${f.dlc}</td>
+        <td class="mono">${dataHexSpaced}</td>
+      </tr>`;
+    }
+
+    const statusHtml = f.isIdentified
+      ? '<span class="pill ok">Identified</span>'
+      : '<span class="pill alert">Unidentified</span>';
+    const nonZeroOnly = document.getElementById('filter-nonzero').checked;
+    const shownSignals = nonZeroOnly ? f.signals.filter(s => s.value !== 0) : f.signals;
+    const signalsHtml = f.isIdentified && shownSignals.length
+      ? shownSignals.map(s => `<span class="decoded-signal"><span class="decoded-signal-field">${escapeHtml(s.fieldName)}</span> = ${s.value}</span>`).join('')
+      : f.isIdentified
+        ? `<span class="muted">${f.signals.length ? '(all zero)' : '(no byte-decodable signals for this frame)'}</span>`
+        : `<span class="mono muted">${dataHexSpaced}</span>`;
+    return `<tr>
+      <td>${new Date(f.receivedAt).toLocaleTimeString()}</td>
+      <td class="mono">0x${f.canIdHex}</td>
+      <td>${statusHtml}</td>
+      <td>${escapeHtml(f.frameName || '—')}</td>
+      <td>${signalsHtml}</td>
+    </tr>`;
+  }).join('');
+}
+
+async function loadSessions() {
+  const sessions = await fetch('/api/can-sniffer/sessions').then(r => r.ok ? r.json() : []).catch(() => []);
+  const rowsEl = document.getElementById('sessions-rows');
+  const emptyEl = document.getElementById('sessions-empty');
+  if (!sessions.length) {
+    rowsEl.innerHTML = '';
+    emptyEl.style.display = '';
+    return;
+  }
+  emptyEl.style.display = 'none';
+  rowsEl.innerHTML = sessions.map(s => `
+    <tr>
+      <td>#${s.id}</td>
+      <td>${formatDateTime(s.startedAt)}</td>
+      <td>${s.stoppedAt ? formatDateTime(s.stoppedAt) : '<span class="pill alert">Running</span>'}</td>
+      <td>${s.frameCount}</td>
+      <td><button type="button" class="btn btn-danger btn-sm" onclick="deleteSession(${s.id})">Delete</button></td>
+    </tr>`).join('');
+}
+
+async function deleteSession(id) {
+  if (!confirm(`Delete session #${id} and all ${'' /* count already visible in the row */}its frames? This can't be undone.`)) return;
+  const res = await fetch(`/api/can-sniffer/sessions/${id}`, { method: 'DELETE' });
+  if (res.ok) { showToast('✓ Session deleted', 'success'); loadSessions(); }
+  else showToast('✗ Failed to delete session', 'error');
+}
+
+async function deleteAllSessions() {
+  if (!confirm('Delete ALL recorded Canbus sessions and frames? This cannot be undone.')) return;
+  const res = await fetch('/api/can-sniffer/sessions', { method: 'DELETE' });
+  const d = await res.json().catch(() => null);
+  if (res.ok) { showToast('✓ All sessions deleted', 'success'); loadSessions(); loadFrames(); }
+  else showToast('✗ ' + (d?.message || 'Failed to delete'), 'error');
+}
+
+(async function init() {
+  await loadIdFilterOptions(); // must resolve before the first loadFrames() reads idFilterAllIds/idFilterSelected
+  await Promise.all([loadStatus(), loadFrames(), loadSessions(), loadStats()]);
+  setInterval(loadStatus, 5000);
+  // Only worth polling frames quickly while actually recording — a fixed 2s poll regardless of
+  // state is cheap enough either way, and keeps this simple (no start/stop timer juggling).
+  setInterval(loadFrames, 2000);
+  setInterval(loadSessions, 5000);
+  setInterval(loadStats, 3000);
+})();
+
+fetch('/api/froniusmeter/status').then(r => r.ok ? r.json() : null).catch(() => null).then(d => {
+  document.getElementById('nav-battery-balancing').style.display = d && d.enabled ? '' : 'none';
+});
+</script>
+</body>
+</html>

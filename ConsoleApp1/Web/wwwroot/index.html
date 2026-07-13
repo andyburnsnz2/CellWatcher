@@ -1,0 +1,484 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>CellWatcher — Dashboard</title>
+<link rel="icon" href="/img/cellkeeper.png">
+<script src="https://cdn.jsdelivr.net/npm/apexcharts@3.45.0/dist/apexcharts.min.js"></script>
+<style>
+*,*::before,*::after{box-sizing:border-box}
+html{overflow-y:scroll}
+body{margin:0;background:#000;color:#e0e0e0;font-family:system-ui,-apple-system,sans-serif;font-size:14px;line-height:1.5}
+a{text-decoration:none}
+nav{background:#111;border-bottom:1px solid #222;position:sticky;top:0;z-index:100}
+.nav-inner{max-width:1400px;margin:0 auto;padding:0 1.5rem;height:96px;display:flex;align-items:center;gap:1rem}
+.brand-logo{height:80px;width:80px;border-radius:14px;flex-shrink:0;border:2px solid rgba(110,198,42,.7);box-shadow:0 0 28px rgba(110,198,42,.75),0 0 8px rgba(110,198,42,1),0 0 50px rgba(110,198,42,.25)}
+.brand{color:#6ec62a;font-weight:700;font-size:1.2rem;margin-right:.25rem}
+.nav-inner a{color:#888;padding:.25rem .6rem;border-radius:4px;font-size:.85rem;transition:background .15s,color .15s}
+.nav-inner a:hover{background:#222;color:#f0f0f0}
+.nav-inner a.on{background:#222;color:#f0f0f0}
+.ml{margin-left:auto}
+.page{max-width:1400px;margin:0 auto;padding:1.25rem}
+.card{background:#111;border:1px solid #222;border-radius:8px;padding:1rem}
+.card-title{font-size:.68rem;text-transform:uppercase;letter-spacing:.07em;color:#8a8a8a;margin-bottom:.4rem}
+.val{font-size:1.45rem;font-weight:700}
+.sub{font-size:.72rem;color:#8a8a8a;margin-top:.15rem}
+.g2{display:grid;grid-template-columns:repeat(2,1fr);gap:1rem}
+.g4{display:grid;grid-template-columns:repeat(4,1fr);gap:1rem}
+.pill{display:inline-flex;align-items:center;padding:.15rem .55rem;border-radius:999px;font-size:.68rem;font-weight:600}
+.ok{background:#0a2008;color:#6ec62a}
+.info{background:#0c1a4a;color:#60a5fa}
+.warn{background:#421c02;color:#fbbf24}
+.alert{background:#3b0404;color:#f87171}
+.muted{color:#8a8a8a}
+.mt1{margin-top:.5rem}
+.mt2{margin-top:1rem}
+.flex-center{display:flex;align-items:center;gap:.5rem}
+.insight-engine-label{font-size:.68rem;text-transform:uppercase;letter-spacing:.06em;color:#6ec62a;font-weight:700}
+.insight-text{font-size:.875rem;line-height:1.75;color:#ccc;white-space:pre-wrap}
+/* Restart / progress overlay — shared pattern across pages */
+.restart-overlay{position:fixed;inset:0;background:rgba(0,0,0,.85);display:none;align-items:center;justify-content:center;z-index:1000;flex-direction:column;gap:1.25rem}
+.restart-overlay.show{display:flex}
+.spinner{width:42px;height:42px;border:3px solid #222;border-top-color:#6ec62a;border-radius:50%;animation:spin .8s linear infinite}
+@keyframes spin{to{transform:rotate(360deg)}}
+.restart-text{font-size:.95rem;color:#e0e0e0;font-weight:500}
+.restart-subtext{font-size:.78rem;color:#555}
+</style>
+</head>
+<body>
+<nav>
+  <div class="nav-inner">
+    <img src="/img/cellkeeper.png" class="brand-logo" alt="CellWatcher">
+    <div style="display:flex;flex-direction:column;line-height:1.2">
+      <span class="brand">CellWatcher</span>
+      <span class="muted" id="app-version" title="Build version — confirms what's actually deployed and running" style="font-size:.58rem"></span>
+    </div>
+    <a href="/" class="on">Dashboard</a>
+    <a href="/cells.html">Cells</a>
+    <a href="/history.html">History</a>
+    <a href="/health.html">Health</a>
+    <a href="/battery-balancing.html" id="nav-battery-balancing">Battery Balancing</a>
+    <a href="/canbus.html">Canbus</a>
+    <a href="/config.html">Config</a>
+    <span class="ml pill" id="mqtt-status" style="font-size:.68rem" title="Time since the last MQTT message was received">BatEm —</span>
+    <span class="pill" id="mqtt-forward-status" style="font-size:.68rem" title="Time since the last message was acknowledged by the forwarding broker (e.g. Home Assistant)">HomeAss —</span>
+    <span class="pill" id="fm-meter-status" style="font-size:.68rem;display:none" title="Fronius fake-meter: time since data was last received (in) and the inverter was last seen (out)">Meter —</span>
+    <span class="muted" id="ts" style="font-size:.75rem"></span>
+  </div>
+</nav>
+<div class="page">
+
+  <!-- SOC gauge + stat cards -->
+  <div style="display:grid;grid-template-columns:210px 1fr;gap:1rem;margin-bottom:1rem">
+    <div class="card" style="display:flex;flex-direction:column;align-items:center;padding:.5rem .5rem 1rem">
+      <div id="soc-gauge"></div>
+      <div class="card-title" style="margin-top:-.25rem">State of Charge</div>
+      <div class="sub" id="soc-real"></div>
+    </div>
+    <div class="g4" style="grid-template-rows:repeat(2,1fr)">
+      <div class="card"><div class="card-title">Pack Voltage</div><div class="val" id="v">—</div><div class="sub">Volts</div></div>
+      <div class="card"><div class="card-title">Pack Current</div><div class="val" id="i">—</div><div class="sub" id="i-dir">—</div></div>
+      <div class="card"><div class="card-title">Pack Power</div><div class="val" id="p">—</div><div class="sub" id="p-dir">—</div></div>
+      <div class="card"><div class="card-title">Pack Controlled By</div><div class="val" id="pack-controller" style="font-size:1.1rem;display:flex;align-items:center;gap:.4rem">—</div><div class="sub" id="pack-controller-power">—</div></div>
+      <div class="card"><div class="card-title">Cell Delta</div><div class="val" id="delta">—</div><div class="sub">millivolts max–min</div></div>
+      <div class="card"><div class="card-title">Temperature</div><div class="val" id="temp">—</div><div class="sub">Min / Max °C</div></div>
+      <div class="card"><div class="card-title">Remaining Capacity</div><div class="val" id="rem">—</div><div class="sub" id="rem-of">— Wh total</div></div>
+      <div class="card"><div class="card-title">Min / Max Cell</div><div class="val" id="minmax" style="font-size:1rem">—</div><div class="sub" id="minmax-v">—</div></div>
+      <div class="card"><div class="card-title">CPU Temperature</div><div class="val" id="cpu">—</div><div class="sub">°C</div></div>
+    </div>
+  </div>
+
+  <!-- Status badges -->
+  <div class="card mt1" style="display:flex;align-items:center;gap:1.5rem;flex-wrap:wrap;padding:.65rem 1rem">
+    <div class="flex-center">BMS <span id="bms" class="pill ok" style="margin-left:.4rem">—</span></div>
+    <div class="flex-center">Emulator <span id="emu" class="pill ok" style="margin-left:.4rem">—</span></div>
+    <div class="flex-center">Pause <span id="pause" class="pill ok" style="margin-left:.4rem">—</span></div>
+    <div class="flex-center">Event <span id="event" class="pill ok" style="margin-left:.4rem">—</span></div>
+    <div class="flex-center">State of Health <span id="soh" style="margin-left:.4rem;font-weight:600">—</span></div>
+    <div class="flex-center ml muted" style="font-size:.8rem">Uptime <span id="uptime" style="margin-left:.35rem;color:#888;font-weight:500">—</span></div>
+  </div>
+
+  <!-- Battery Balancing summary — completely hidden unless activation mode isn't "off" -->
+  <div class="card mt1" id="balancing-summary-card" style="display:none;align-items:center;gap:1.5rem;flex-wrap:wrap;padding:.65rem 1rem">
+    <div class="flex-center">Battery Balancing <span id="balancing-state" class="pill info" style="margin-left:.4rem">—</span></div>
+    <div class="flex-center muted" style="font-size:.8rem">Last done <span id="balancing-last-done" style="margin-left:.35rem;color:#888;font-weight:500">—</span></div>
+    <div class="flex-center muted" style="font-size:.8rem" id="balancing-next-start-row">Next start <span id="balancing-next-start" style="margin-left:.35rem;color:#888;font-weight:500">—</span></div>
+    <a href="/battery-balancing.html" class="ml muted" style="font-size:.78rem">View →</a>
+  </div>
+
+  <!-- AI Insights -->
+  <div class="card mt2" id="insights-card">
+    <div style="display:flex;align-items:center;gap:.75rem;margin-bottom:.75rem">
+      <div class="card-title" style="margin-bottom:0">AI Insights</div>
+      <button onclick="refreshInsights()" id="insights-btn" style="margin-left:auto;background:#1a3a0a;border:1px solid #3a7a19;color:#6ec62a;padding:.3rem .9rem;border-radius:5px;cursor:pointer;font-size:.8rem;font-weight:600;transition:all .15s" onmouseover="this.style.background='#2a5a14'" onmouseout="this.style.background='#1a3a0a'">Refresh Analysis</button>
+    </div>
+    <div id="insights-body" style="display:grid;gap:1.25rem"></div>
+  </div>
+
+  <!-- Alerts + trend chart -->
+  <div class="g2 mt2">
+    <div class="card">
+      <div class="card-title">Active Alerts &amp; Warnings</div>
+      <div id="alerts" style="max-height:280px;overflow-y:auto;padding-right:.25rem"><span class="muted">Loading…</span></div>
+    </div>
+    <div class="card">
+      <div class="card-title">SOC &amp; Cell Delta — Last Hour</div>
+      <div id="trend-chart"></div>
+    </div>
+  </div>
+
+</div>
+
+<div class="restart-overlay" id="progress-overlay">
+  <div class="spinner"></div>
+  <div class="restart-text" id="progress-text">Working…</div>
+  <div class="restart-subtext" id="progress-subtext"></div>
+</div>
+
+<script>
+const n = (v, d=1) => v == null ? '—' : (+v).toFixed(d);
+const nv = v => v == null ? '—' : (+v).toFixed(3);
+const sev = s => ({'ALERT':'alert','WARN':'warn','INFO':'info'}[s?.toUpperCase()] ?? 'ok');
+const escapeHtml = s => String(s).replace(/[&<>"']/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
+
+// Traffic-light badge for an AI analysis's parsed STATUS line (OK/WATCH/ACT/unknown).
+function statusPill(status) {
+  if (status === 'OK')    return '<span class="pill ok">✓ OK</span>';
+  if (status === 'WATCH') return '<span class="pill warn">⚠ WATCH</span>';
+  if (status === 'ACT')   return '<span class="pill alert">⚑ ACT</span>';
+  return '<span class="pill" style="background:#161616;color:#666">— UNKNOWN</span>';
+}
+
+function showProgress(text, subtext) {
+  document.getElementById('progress-text').textContent = text;
+  document.getElementById('progress-subtext').textContent = subtext || '';
+  document.getElementById('progress-overlay').classList.add('show');
+}
+function hideProgress() {
+  document.getElementById('progress-overlay').classList.remove('show');
+}
+
+// Best-guess status timeline while the request is in flight — data gathering is
+// fast, the AI call is what's slow — just enough to signal the wait is expected.
+function startStagedProgress(title, stages) {
+  showProgress(title, stages[0].text);
+  const timers = stages.slice(1).map(stage =>
+    setTimeout(() => {
+      document.getElementById('progress-subtext').textContent = stage.text;
+    }, stage.at));
+  return () => timers.forEach(clearTimeout);
+}
+
+function uptime(s) {
+  if (!s) return '—';
+  const d=Math.floor(s/86400), h=Math.floor(s%86400/3600), m=Math.floor(s%3600/60);
+  return d ? `${d}d ${h}h` : h ? `${h}h ${m}m` : `${m}m`;
+}
+
+const socGauge = new ApexCharts(document.getElementById('soc-gauge'), {
+  chart:{type:'radialBar',height:185,background:'transparent',sparkline:{enabled:true}},
+  plotOptions:{radialBar:{
+    startAngle:-130,endAngle:130,
+    hollow:{size:'58%'},
+    dataLabels:{
+      name:{show:false},
+      value:{fontSize:'1.45rem',fontWeight:700,color:'#e0e0e0',offsetY:8,formatter:v=>v+'%'}
+    },
+    track:{background:'#222'}
+  }},
+  fill:{colors:['#22c55e']},series:[0],theme:{mode:'dark'}
+});
+socGauge.render();
+
+const trendChart = new ApexCharts(document.getElementById('trend-chart'), {
+  chart:{type:'line',height:185,background:'transparent',toolbar:{show:false},animations:{enabled:false}},
+  series:[{name:'SOC %',data:[]},{name:'Delta mV',data:[]}],
+  xaxis:{type:'datetime',labels:{style:{colors:'#555'},datetimeUTC:false},axisBorder:{color:'#222'}},
+  yaxis:[
+    {title:{text:'SOC %',style:{color:'#555',fontSize:'11px'}},labels:{style:{colors:'#555'}}},
+    {opposite:true,title:{text:'Delta mV',style:{color:'#555',fontSize:'11px'}},labels:{style:{colors:'#555'}}}
+  ],
+  stroke:{curve:'smooth',width:2},
+  colors:['#6ec62a','#fbbf24'],
+  grid:{borderColor:'#1a1a1a'},
+  theme:{mode:'dark'},
+  legend:{labels:{colors:'#888'},fontSize:'12px'},
+  tooltip:{theme:'dark',x:{format:'HH:mm:ss'}}
+});
+trendChart.render();
+
+// Green while messages are still arriving, amber once they've gone quiet for a
+// while (still probably fine — heartbeats can be minutes apart), red once it's
+// been long enough that something is actually likely wrong.
+function updateMqttStatus(lastMqttMessageAt) {
+  const el = document.getElementById('mqtt-status');
+  if (!lastMqttMessageAt) {
+    el.textContent = 'BatEm: no messages yet';
+    el.className = 'ml pill alert';
+    return;
+  }
+  const ageSeconds = (Date.now() - new Date(lastMqttMessageAt).getTime()) / 1000;
+  const cls = ageSeconds <= 90 ? 'ok' : ageSeconds <= 600 ? 'warn' : 'alert';
+  const age = ageSeconds < 60 ? `${Math.round(ageSeconds)}s ago` : ageSeconds < 3600 ? `${Math.round(ageSeconds/60)}m ago` : `${Math.round(ageSeconds/3600)}h ago`;
+  el.textContent = `BatEm: ${age}`;
+  el.className = 'ml pill ' + cls;
+}
+
+// Same logic as updateMqttStatus, but for the forward-to-HA leg (Standalone mode only) —
+// tracks acknowledged publishes (QoS 1 PUBACK), not just attempted sends.
+function updateMqttForwardStatus(lastMqttForwardAckAt) {
+  const el = document.getElementById('mqtt-forward-status');
+  if (!lastMqttForwardAckAt) {
+    el.textContent = 'HomeAss: not yet';
+    el.className = 'pill alert';
+    return;
+  }
+  const ageSeconds = (Date.now() - new Date(lastMqttForwardAckAt).getTime()) / 1000;
+  const cls = ageSeconds <= 90 ? 'ok' : ageSeconds <= 600 ? 'warn' : 'alert';
+  const age = ageSeconds < 60 ? `${Math.round(ageSeconds)}s ago` : ageSeconds < 3600 ? `${Math.round(ageSeconds/60)}m ago` : `${Math.round(ageSeconds/3600)}h ago`;
+  el.textContent = `HomeAss: ${age}`;
+  el.className = 'pill ' + cls;
+}
+
+// Fronius fake-meter nav pill — only shown once the feature is enabled, since otherwise it'd
+// just permanently read "none yet" for a feature most installs won't use. Combines the in (MQTT)
+// and out (inverter-seen) legs into one indicator, driven by whichever is more stale — the pill
+// only looks healthy once both directions are actually fresh.
+async function loadFroniusMeterStatus() {
+  const d = await fetch('/api/froniusmeter/status').then(r => r.ok ? r.json() : null).catch(() => null);
+  const el = document.getElementById('fm-meter-status');
+  // Battery Balancing depends entirely on the fake meter — hide its nav link too when disabled.
+  document.getElementById('nav-battery-balancing').style.display = d && d.enabled ? '' : 'none';
+  if (!d || !d.enabled) {
+    el.style.display = 'none';
+    return;
+  }
+  el.style.display = '';
+
+  if (!d.lastMqttMessageAt && !d.lastInverterSeenAt) {
+    el.textContent = 'Meter: none yet';
+    el.className = 'pill alert';
+    return;
+  }
+  const mqttAge = d.lastMqttMessageAt ? (Date.now() - new Date(d.lastMqttMessageAt).getTime()) / 1000 : Infinity;
+  const inverterAge = d.lastInverterSeenAt ? (Date.now() - new Date(d.lastInverterSeenAt).getTime()) / 1000 : Infinity;
+  const ageSeconds = Math.max(mqttAge, inverterAge);
+  const cls = ageSeconds <= 90 ? 'ok' : ageSeconds <= 600 ? 'warn' : 'alert';
+  const age = ageSeconds < 60 ? `${Math.round(ageSeconds)}s ago` : ageSeconds < 3600 ? `${Math.round(ageSeconds/60)}m ago` : `${Math.round(ageSeconds/3600)}h ago`;
+  el.textContent = `Meter: ${age}`;
+  el.className = 'pill ' + cls;
+  el.title = `In: ${d.lastMqttMessageAt ? new Date(d.lastMqttMessageAt).toLocaleTimeString() : 'never'} · Out: ${d.lastInverterSeenAt ? new Date(d.lastInverterSeenAt).toLocaleTimeString() : 'never'}`;
+}
+
+// Small inline "home" icon in Home Assistant's blue — self-contained, no external asset request.
+const haIconSvg = '<svg width="16" height="16" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg" style="flex-shrink:0"><path d="M12 3L3 10.5V21H9.5V14.5H14.5V21H21V10.5L12 3Z" fill="#41BDF5"/></svg>';
+
+async function loadPackController() {
+  const d = await fetch('/api/pack-control/status').then(r => r.ok ? r.json() : null).catch(() => null);
+  const el = document.getElementById('pack-controller');
+  const powerEl = document.getElementById('pack-controller-power');
+  if (!d) { el.textContent = '—'; powerEl.textContent = '—'; return; }
+
+  if (d.controller === 'cell_watcher') {
+    el.innerHTML = 'Cell Watcher';
+  } else if (d.controller === 'home_assistant') {
+    el.innerHTML = haIconSvg + '<span>Home Assistant</span>';
+  } else {
+    el.innerHTML = 'Fronius (Self)';
+  }
+
+  if (d.commandedPowerWatts == null) {
+    powerEl.textContent = '—';
+  } else {
+    const kw = d.commandedPowerWatts / 1000;
+    if (kw < -0.01) powerEl.textContent = `Charging at ${Math.abs(kw).toFixed(2)} kW`;
+    else if (kw > 0.01) powerEl.textContent = `Discharging at ${kw.toFixed(2)} kW`;
+    else powerEl.textContent = 'Idle / balanced';
+  }
+}
+
+function formatBalancingDateTime(iso) {
+  return iso ? new Date(iso).toLocaleString() : 'never';
+}
+
+// Completely hidden (not just greyed out) unless activation mode isn't "off" — a feature most
+// installs won't use shouldn't clutter the dashboard with a permanent "disabled" tile.
+async function loadBalancingSummary() {
+  const [d, fm] = await Promise.all([
+    fetch('/api/battery-control/status').then(r => r.ok ? r.json() : null).catch(() => null),
+    fetch('/api/froniusmeter/status').then(r => r.ok ? r.json() : null).catch(() => null),
+  ]);
+  const card = document.getElementById('balancing-summary-card');
+  // Depends entirely on the fake meter — hide completely if that's off too, regardless of
+  // whatever the balancing schedule itself is set to (avoids showing a summary for a feature
+  // that can't actually be doing anything).
+  if (!d || d.activationMode === 'off' || !fm || !fm.enabled) {
+    card.style.display = 'none';
+    return;
+  }
+  card.style.display = 'flex';
+
+  const stateEl = document.getElementById('balancing-state');
+  if (d.overrideActive) {
+    stateEl.textContent = 'ACTIVE';
+    stateEl.className = 'pill alert';
+  } else if (d.activationMode === 'manual') {
+    stateEl.textContent = 'Manual (not running)';
+    stateEl.className = 'pill info';
+  } else {
+    stateEl.textContent = 'Armed (waiting for window)';
+    stateEl.className = 'pill info';
+  }
+
+  document.getElementById('balancing-last-done').textContent = formatBalancingDateTime(d.lastStoppedAt);
+
+  const nextStartRow = document.getElementById('balancing-next-start-row');
+  if (d.nextScheduledStart) {
+    nextStartRow.style.display = '';
+    document.getElementById('balancing-next-start').textContent = formatBalancingDateTime(d.nextScheduledStart);
+  } else {
+    nextStartRow.style.display = 'none'; // manual mode has no scheduled next start
+  }
+}
+
+async function loadLive() {
+  const d = await fetch('/api/live').then(r=>r.json()).catch(()=>null);
+  if (!d) return;
+  document.getElementById('ts').textContent = 'Updated ' + new Date().toLocaleTimeString();
+  updateMqttStatus(d.lastMqttMessageAt);
+  updateMqttForwardStatus(d.lastMqttForwardAckAt);
+
+  const soc = d.socPercent != null ? Math.round(+d.socPercent) : 0;
+  socGauge.updateSeries([soc]);
+  socGauge.updateOptions({fill:{colors:[soc<20?'#ef4444':soc<50?'#fbbf24':'#22c55e']}});
+  document.getElementById('soc-real').textContent = d.socRealPercent ? `Real: ${n(d.socRealPercent)}%` : '';
+
+  document.getElementById('v').textContent = n(d.packVoltageV, 1) + ' V';
+
+  const cur = d.packCurrentA != null ? +d.packCurrentA : null;
+  document.getElementById('i').textContent = cur != null ? Math.abs(cur).toFixed(1)+' A' : '—';
+  document.getElementById('i-dir').textContent = cur==null ? '' : cur>0.5 ? '↑ Charging' : cur<-0.5 ? '↓ Discharging' : '~ Idle';
+
+  const pw = d.packPowerW != null ? +d.packPowerW : null;
+  document.getElementById('p').textContent = pw==null ? '—' : Math.abs(pw)>=1000 ? (Math.abs(pw)/1000).toFixed(2)+' kW' : Math.abs(pw).toFixed(0)+' W';
+  document.getElementById('p-dir').textContent = pw==null ? '' : pw>100 ? 'Charging' : pw<-100 ? 'Discharging' : 'Idle';
+
+  const dv = d.cellDeltaMv != null ? +d.cellDeltaMv : null;
+  const de = document.getElementById('delta');
+  de.textContent = dv==null ? '—' : dv.toFixed(1);
+  de.style.color = dv==null ? '' : dv>=80 ? '#ef4444' : dv>=50 ? '#f97316' : dv>=30 ? '#fbbf24' : '#6ec62a';
+
+  document.getElementById('temp').textContent = `${n(d.temperatureMinC)} / ${n(d.temperatureMaxC)}`;
+  document.getElementById('rem').textContent = n(d.remainingCapacityWh, 0)+' Wh';
+  document.getElementById('rem-of').textContent = `of ${n(d.totalCapacityWh,0)} Wh total`;
+  document.getElementById('minmax').textContent = `#${d.minCellNo??'—'} / #${d.maxCellNo??'—'}`;
+  document.getElementById('minmax-v').textContent = `${nv(d.minCellV)} / ${nv(d.maxCellV)} V`;
+  document.getElementById('cpu').textContent = n(d.cpuTempC, 1)+' °C';
+  document.getElementById('soh').textContent = d.stateOfHealthPercent ? n(d.stateOfHealthPercent,1)+'%' : '—';
+  document.getElementById('uptime').textContent = uptime(d.emulatorUptimeSeconds);
+
+  document.getElementById('bms').textContent = d.bmsStatus || '—';
+  document.getElementById('emu').textContent = d.emulatorStatus || '—';
+  document.getElementById('pause').textContent = d.pauseStatus || '—';
+  const ev = document.getElementById('event');
+  ev.textContent = d.eventLevel || '—';
+  ev.className = 'pill ' + sev(d.eventLevel);
+}
+
+async function loadAlerts() {
+  const metrics = await fetch('/api/metrics/latest').then(r=>r.json()).catch(()=>[]);
+  const alerts = metrics.filter(m=>m.severity==='ALERT'||m.severity==='WARN');
+  const el = document.getElementById('alerts');
+  if (!alerts.length) {
+    el.innerHTML = '<div style="color:#6ec62a;font-size:.85rem;padding:.25rem 0">✓ No active alerts or warnings</div>';
+    return;
+  }
+  el.innerHTML = alerts.map(a=>`
+    <div style="display:flex;gap:.5rem;align-items:flex-start;padding:.4rem 0;border-bottom:1px solid #1a1a1a">
+      <span class="pill ${sev(a.severity)}" style="flex-shrink:0;margin-top:.1rem">${a.severity}</span>
+      <div>
+        <div style="font-size:.82rem;font-weight:500">${(a.metricName||'').replace(/_/g,' ')}${a.cellNo!=null?` · Cell ${a.cellNo}`:''}</div>
+        <div class="muted" style="font-size:.72rem;margin-top:.1rem">${a.message||''}</div>
+      </div>
+    </div>`).join('');
+}
+
+async function loadTrend() {
+  const h = await fetch('/api/pack/history?hours=1').then(r=>r.json()).catch(()=>[]);
+  trendChart.updateSeries([
+    {name:'SOC %',   data:h.map(r=>[new Date(r.readAt).getTime(), r.socPercent])},
+    {name:'Delta mV',data:h.map(r=>[new Date(r.readAt).getTime(), r.cellDeltaMv])}
+  ]);
+}
+
+function renderInsightBlock(engineLabel, result) {
+  if (!result) return '';
+  const color = result.success ? '#ccc' : '#f87171';
+  const ts = result.generatedAt && result.generatedAt !== '0001-01-01T00:00:00'
+    ? 'Last analysed ' + new Date(result.generatedAt).toLocaleString()
+    : '';
+  const pill = result.success ? statusPill(result.statusLevel) : '';
+  return `<div class="insight-block">
+    <div style="display:flex;align-items:baseline;gap:.6rem;margin-bottom:.4rem;flex-wrap:wrap">
+      <div class="insight-engine-label">${engineLabel}</div>
+      ${pill}
+      <span class="muted" style="font-size:.68rem">${ts}</span>
+    </div>
+    <div class="insight-text" style="color:${color}">${escapeHtml(result.text || '')}</div>
+  </div>`;
+}
+
+function renderInsights(d) {
+  const body = document.getElementById('insights-body');
+  const blocks = [];
+  if (d?.claude)  blocks.push(renderInsightBlock('Claude', d.claude));
+  if (d?.chatGpt) blocks.push(renderInsightBlock('ChatGPT', d.chatGpt));
+
+  if (blocks.length === 0) {
+    body.style.gridTemplateColumns = '1fr';
+    body.innerHTML = '<div class="muted" style="font-size:.85rem">No AI insights yet — configure a Claude and/or ChatGPT API key in <a href="/config.html" style="color:#6ec62a">Config → Integrations</a>, then click Refresh Analysis.</div>';
+    return;
+  }
+  body.style.gridTemplateColumns = blocks.length > 1 ? 'repeat(2,1fr)' : '1fr';
+  body.innerHTML = blocks.join('');
+}
+
+async function loadInsights() {
+  const d = await fetch('/api/insights').then(r => r.json()).catch(() => null);
+  renderInsights(d);
+}
+
+async function refreshInsights() {
+  const btn = document.getElementById('insights-btn');
+  btn.disabled = true;
+  const stopStaging = startStagedProgress('Analysing battery data…', [
+    { at: 0,     text: 'Gathering the last few days of readings…' },
+    { at: 2000,  text: 'Sending request to the AI engine(s)…' },
+    { at: 6000,  text: 'Waiting for a response…' },
+    { at: 15000, text: 'Still waiting — almost there…' },
+  ]);
+  const d = await fetch('/api/insights/refresh', { method: 'POST' }).then(r => r.json()).catch(() => null);
+  stopStaging();
+  hideProgress();
+  btn.disabled = false;
+  if (d) renderInsights(d);
+}
+
+(async function init() {
+  await Promise.all([loadLive(), loadAlerts(), loadInsights(), loadFroniusMeterStatus(), loadBalancingSummary(), loadPackController()]);
+  loadTrend();
+  setInterval(loadLive,   5000);
+  setInterval(loadAlerts, 30000);
+  setInterval(loadTrend,  60000);
+  setInterval(loadFroniusMeterStatus, 5000);
+  setInterval(loadBalancingSummary, 5000);
+  setInterval(loadPackController, 5000);
+})();
+
+fetch('/api/version').then(r => r.ok ? r.json() : null).catch(() => null).then(d => {
+  if (d) document.getElementById('app-version').textContent = d.version;
+});
+</script>
+</body>
+</html>

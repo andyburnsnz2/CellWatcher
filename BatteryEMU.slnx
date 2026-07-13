@@ -1,0 +1,27 @@
+<Solution>
+  <Folder Name="/ConsoleApp1/">
+    <Project Path="ConsoleApp1/BatteryEMU.csproj" />
+  </Folder>
+  <!-- PlatformIO project (ESP32/C++), not an MSBuild project — added as solution items so it's
+       visible/editable/navigable here, since dotnet build/MSBuild can't compile it. Build with
+       `pio run` from CanSniffer/firmware (see its README.md). -->
+  <Folder Name="/CanSniffer/">
+    <File Path="CanSniffer/firmware/README.md" />
+    <File Path="CanSniffer/firmware/platformio.ini" />
+    <File Path="CanSniffer/firmware/.gitignore" />
+    <File Path="CanSniffer/firmware/src/main.cpp" />
+    <File Path="CanSniffer/firmware/src/config.h" />
+    <File Path="CanSniffer/firmware/src/pins.h" />
+    <File Path="CanSniffer/firmware/src/wifi_provisioning.h" />
+    <File Path="CanSniffer/firmware/src/wifi_provisioning.cpp" />
+  </Folder>
+  <Folder Name="/Installer/">
+    <Project Path="Installer/BatteryEMU.Setup.Bundle/BatteryEMU.Setup.Bundle.wixproj" Type="b7dd6f7e-def8-4e67-b5b7-07ef123db6f0">
+      <Platform Solution="*|*" Project="x64" />
+    </Project>
+    <Project Path="Installer/BatteryEMU.Setup.Helper/BatteryEMU.Setup.Helper.csproj" />
+    <Project Path="Installer/BatteryEMU.Setup.Msi/BatteryEMU.Setup.Msi.wixproj" Type="b7dd6f7e-def8-4e67-b5b7-07ef123db6f0">
+      <Platform Solution="*|*" Project="x64" />
+    </Project>
+  </Folder>
+</Solution>

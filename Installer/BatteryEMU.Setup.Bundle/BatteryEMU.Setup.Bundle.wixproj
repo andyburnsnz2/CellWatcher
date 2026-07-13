@@ -1,0 +1,27 @@
+<Project Sdk="WixToolset.Sdk/6.0.2">
+
+  <PropertyGroup>
+    <AcceptEula>wix6</AcceptEula>
+    <OutputType>Bundle</OutputType>
+    <OutputName>BatteryEMU-Setup</OutputName>
+    <Platform>x64</Platform>
+    <DefineConstants>
+      MariaDbCacheFile=$(MSBuildThisFileDirectory)..\cache\mariadb-12.3.2-winx64.msi
+    </DefineConstants>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <PackageReference Include="WixToolset.BootstrapperApplications.wixext" Version="6.0.2" />
+    <PackageReference Include="WixToolset.Util.wixext" Version="6.0.2" />
+  </ItemGroup>
+
+  <!-- ProjectReferences (not hardcoded DefineConstants paths) so MSBuild always builds these
+       before the Bundle, and Bundle.wxs can use $(var.<ProjectName>.TargetPath) instead of a
+       hardcoded bin\x64\Debug path that goes stale the moment either project builds to a
+       different output folder (e.g. a Platform mismatch). -->
+  <ItemGroup>
+    <ProjectReference Include="..\BatteryEMU.Setup.Msi\BatteryEMU.Setup.Msi.wixproj" />
+    <ProjectReference Include="..\BatteryEMU.Setup.Helper\BatteryEMU.Setup.Helper.csproj" />
+  </ItemGroup>
+
+</Project>
