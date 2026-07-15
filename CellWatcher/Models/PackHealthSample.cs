@@ -12,4 +12,14 @@ public sealed record PackHealthSample(
     decimal? MaxCellV,
     decimal? CellDeltaMv,
     int? MinCellNo,
-    int? MaxCellNo);
+    int? MaxCellNo,
+    int? CellCount,
+    decimal? SocRealPercent,
+    decimal? StateOfHealthPercent,
+    decimal? MaxDischargePowerW,
+    decimal? MaxChargePowerW,
+    decimal? RemainingCapacityWh,
+    decimal? TotalCapacityWh,
+    decimal? ChargedEnergyWh,
+    decimal? DischargedEnergyWh,
+    decimal? CpuTempC);

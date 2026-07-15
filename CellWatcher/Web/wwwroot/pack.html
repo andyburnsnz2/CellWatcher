@@ -1,0 +1,340 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>CellWatcher — Pack</title>
+<link rel="icon" href="/img/cellwatcher.png">
+<script src="https://cdn.jsdelivr.net/npm/apexcharts@3.45.0/dist/apexcharts.min.js"></script>
+<style>
+*,*::before,*::after{box-sizing:border-box}
+html{overflow-y:scroll}
+body{margin:0;background:#000;color:#e0e0e0;font-family:system-ui,-apple-system,sans-serif;font-size:14px;line-height:1.5}
+a{text-decoration:none}
+nav{background:#111;border-bottom:1px solid #222;position:sticky;top:0;z-index:100}
+.nav-inner{max-width:1400px;margin:0 auto;padding:0 1.5rem;height:96px;display:flex;align-items:center;gap:1rem}
+.brand-logo{height:80px;width:80px;border-radius:14px;flex-shrink:0;border:2px solid rgba(110,198,42,.7);box-shadow:0 0 28px rgba(110,198,42,.75),0 0 8px rgba(110,198,42,1),0 0 50px rgba(110,198,42,.25)}
+.brand{color:#6ec62a;font-weight:700;font-size:1.2rem;margin-right:.25rem}
+.nav-inner a{color:#888;padding:.25rem .6rem;border-radius:4px;font-size:.85rem}
+.nav-inner a:hover,.nav-inner a.on{background:#222;color:#f0f0f0}
+.ml{margin-left:auto}
+.page{max-width:1400px;margin:0 auto;padding:1.25rem}
+.card{background:#111;border:1px solid #222;border-radius:8px;padding:1rem}
+.card-title{font-size:.68rem;text-transform:uppercase;letter-spacing:.07em;color:#555;margin-bottom:.5rem}
+.muted{color:#555}
+.mt2{margin-top:1rem}
+.controls{display:flex;align-items:flex-start;gap:1rem;margin-bottom:1rem;flex-wrap:wrap}
+.control-group{display:flex;align-items:center;gap:.5rem}
+.control-label{font-size:.8rem;color:#888;white-space:nowrap}
+.range-btns,.mode-btns{display:flex;gap:.4rem}
+.range-btn,.mode-btn{background:#0a0a0a;border:1px solid #222;color:#888;padding:.25rem .75rem;border-radius:4px;cursor:pointer;font-size:.8rem;transition:all .15s}
+.range-btn:hover,.mode-btn:hover{border-color:#555;color:#e0e0e0}
+.range-btn.active,.mode-btn.active{background:#6ec62a;border-color:#6ec62a;color:#000;font-weight:600}
+.series-picker{position:relative}
+.series-btn{background:#0a0a0a;border:1px solid #222;color:#e0e0e0;padding:.25rem .9rem;border-radius:4px;cursor:pointer;font-size:.8rem;display:flex;align-items:center;gap:.4rem}
+.series-btn:hover{border-color:#555}
+.series-panel{display:none;position:absolute;top:calc(100% + 6px);left:0;background:#111;border:1px solid #222;border-radius:8px;padding:.75rem;width:340px;max-height:420px;overflow-y:auto;z-index:200;box-shadow:0 8px 24px rgba(0,0,0,.5)}
+.series-panel.open{display:block}
+.series-panel .panel-actions{display:flex;gap:.5rem;margin-bottom:.6rem;padding-bottom:.6rem;border-bottom:1px solid #222}
+.series-panel .panel-actions button{background:none;border:1px solid #222;color:#888;padding:.15rem .5rem;border-radius:4px;cursor:pointer;font-size:.72rem}
+.series-panel .panel-actions button:hover{border-color:#555;color:#e0e0e0}
+.series-group-title{font-size:.65rem;text-transform:uppercase;letter-spacing:.06em;color:#555;margin:.6rem 0 .3rem}
+.series-group-title:first-child{margin-top:0}
+.series-item{display:flex;align-items:center;gap:.5rem;padding:.2rem 0;cursor:pointer;font-size:.82rem}
+.series-item:hover{color:#f0f0f0}
+.series-item input{accent-color:#6ec62a}
+.series-swatch{width:10px;height:10px;border-radius:2px;flex-shrink:0}
+.loading{display:flex;align-items:center;justify-content:center;height:180px;color:#555}
+</style>
+</head>
+<body>
+<nav>
+  <div class="nav-inner">
+    <img src="/img/cellwatcher.png" class="brand-logo" alt="CellWatcher">
+    <span class="brand">CellWatcher</span>    <a href="/">Dashboard</a>
+    <a href="/cells.html">Cells</a>
+    <a href="/pack.html" class="on">Pack</a>
+    <a href="/health.html">Health</a>
+    <a href="/battery-balancing.html" id="nav-battery-balancing">Battery Balancing</a>
+    <a href="/canbus.html">Canbus</a>
+    <a href="/config.html">Config</a>
+    <span class="ml muted" id="ts" style="font-size:.75rem"></span>
+  </div>
+</nav>
+<div class="page">
+
+  <div class="controls">
+    <div class="control-group">
+      <span class="control-label">Time range:</span>
+      <div class="range-btns">
+        <button class="range-btn" data-h="1">1h</button>
+        <button class="range-btn active" data-h="6">6h</button>
+        <button class="range-btn" data-h="24">24h</button>
+        <button class="range-btn" data-h="168">7d</button>
+      </div>
+    </div>
+
+    <div class="control-group">
+      <span class="control-label">Axis:</span>
+      <div class="mode-btns">
+        <button class="mode-btn active" data-mode="multi">Multi-axis</button>
+        <button class="mode-btn" data-mode="normalized">Normalized</button>
+      </div>
+    </div>
+
+    <div class="control-group series-picker">
+      <span class="control-label">Series:</span>
+      <button class="series-btn" id="series-btn">Select series (<span id="series-count">0</span>) ▾</button>
+      <div class="series-panel" id="series-panel"></div>
+    </div>
+
+    <span class="ml muted" id="row-count" style="font-size:.75rem"></span>
+  </div>
+
+  <div class="card">
+    <div class="card-title">Pack Metrics</div>
+    <div id="chart-pack"></div>
+  </div>
+
+</div>
+<script>
+// Each metric: key = field on /api/pack/history rows (or a calc() over the row for derived
+// values); group = axis-sharing bucket (metrics on wildly different scales, e.g. pack V vs
+// cell V, must NOT share a group even though the unit label is the same).
+const METRICS = [
+  { key:'socPercent',            label:'SoC',                  unit:'%',  decimals:1, group:'pct',     color:'#6ec62a', default:true },
+  { key:'socRealPercent',        label:'SoC (Real)',           unit:'%',  decimals:1, group:'pct',     color:'#22d3ee' },
+  { key:'stateOfHealthPercent',  label:'State of Health',      unit:'%',  decimals:1, group:'pct',     color:'#a3e635' },
+  { key:'packVoltageV',          label:'Pack Voltage',         unit:'V',  decimals:1, group:'packV',   color:'#a78bfa' },
+  { key:'packCurrentA',          label:'Pack Current',         unit:'A',  decimals:1, group:'current', color:'#f59e0b' },
+  { key:'packPowerKw',           label:'Pack Power',           unit:'kW', decimals:2, group:'power',   color:'#f87171', default:true,
+    calc:r=>r.packPowerW!=null ? +r.packPowerW/1000 : null },
+  { key:'maxDischargePowerKw',   label:'Max Discharge Power',  unit:'kW', decimals:2, group:'power',   color:'#fb923c',
+    calc:r=>r.maxDischargePowerW!=null ? +r.maxDischargePowerW/1000 : null },
+  { key:'maxChargePowerKw',      label:'Max Charge Power',     unit:'kW', decimals:2, group:'power',   color:'#fbbf24',
+    calc:r=>r.maxChargePowerW!=null ? +r.maxChargePowerW/1000 : null },
+  { key:'temperatureMinC',       label:'Temp Min',             unit:'°C', decimals:1, group:'temp',    color:'#34d399' },
+  { key:'temperatureMaxC',       label:'Temp Max',             unit:'°C', decimals:1, group:'temp',    color:'#f87171' },
+  { key:'cpuTempC',              label:'CPU Temp',             unit:'°C', decimals:1, group:'temp',    color:'#facc15' },
+  { key:'minCellV',              label:'Min Cell V',           unit:'V',  decimals:3, group:'cellV',   color:'#60a5fa' },
+  { key:'maxCellV',              label:'Max Cell V',           unit:'V',  decimals:3, group:'cellV',   color:'#f472b6' },
+  { key:'avgCellV',              label:'Avg Cell V',           unit:'V',  decimals:3, group:'cellV',   color:'#c084fc',
+    calc:r=>(r.packVoltageV!=null && r.cellCount) ? +r.packVoltageV/r.cellCount : null },
+  { key:'cellDeltaMv',           label:'Cell Delta',           unit:'mV', decimals:1, group:'delta',   color:'#fbbf24', default:true },
+  { key:'remainingCapacityWh',   label:'Remaining Capacity',   unit:'Wh', decimals:0, group:'energy',  color:'#38bdf8' },
+  { key:'totalCapacityWh',       label:'Total Capacity',       unit:'Wh', decimals:0, group:'energy',  color:'#818cf8' },
+  { key:'chargedEnergyWh',       label:'Charged Energy',       unit:'Wh', decimals:0, group:'energy',  color:'#4ade80' },
+  { key:'dischargedEnergyWh',    label:'Discharged Energy',    unit:'Wh', decimals:0, group:'energy',  color:'#fb7185' }
+];
+
+const GROUP_LABELS = {
+  pct:'State', packV:'Voltage', current:'Current', power:'Power',
+  temp:'Temperature', cellV:'Cell Voltage', delta:'Cell Balance', energy:'Capacity & Energy'
+};
+
+function metricValue(metric, row) {
+  const raw = metric.calc ? metric.calc(row) : row[metric.key];
+  return raw == null ? null : +raw;
+}
+
+function fmtValue(metric, v) {
+  return v == null ? '—' : v.toFixed(metric.decimals) + ' ' + metric.unit;
+}
+
+// ---- persisted UI state ----
+let selectedKeys = new Set(METRICS.filter(m => m.default).map(m => m.key));
+try {
+  const saved = JSON.parse(localStorage.getItem('packSeriesSelection') || 'null');
+  if (Array.isArray(saved) && saved.length) selectedKeys = new Set(saved.filter(k => METRICS.some(m => m.key === k)));
+} catch {}
+
+let axisMode = localStorage.getItem('packAxisMode') || 'multi';
+let currentHours = 6;
+let latestData = [];
+
+// ---- series picker panel ----
+const panel = document.getElementById('series-panel');
+function renderPanel() {
+  let html = '<div class="panel-actions"><button id="sel-all">Select all</button><button id="sel-none">Clear</button><button id="sel-default">Defaults</button></div>';
+  let lastGroup = null;
+  for (const m of METRICS) {
+    if (m.group !== lastGroup) {
+      html += `<div class="series-group-title">${GROUP_LABELS[m.group] || m.group}</div>`;
+      lastGroup = m.group;
+    }
+    const checked = selectedKeys.has(m.key) ? 'checked' : '';
+    html += `<label class="series-item"><input type="checkbox" data-key="${m.key}" ${checked}>
+      <span class="series-swatch" style="background:${m.color}"></span>${m.label} <span class="muted">(${m.unit})</span></label>`;
+  }
+  panel.innerHTML = html;
+
+  panel.querySelectorAll('input[type=checkbox]').forEach(cb => {
+    cb.addEventListener('change', () => {
+      if (cb.checked) selectedKeys.add(cb.dataset.key); else selectedKeys.delete(cb.dataset.key);
+      persistSelection();
+      updateSeriesCount();
+      render();
+    });
+  });
+  panel.querySelector('#sel-all').addEventListener('click', () => {
+    METRICS.forEach(m => selectedKeys.add(m.key));
+    persistSelection(); renderPanel(); updateSeriesCount(); render();
+  });
+  panel.querySelector('#sel-none').addEventListener('click', () => {
+    selectedKeys.clear();
+    persistSelection(); renderPanel(); updateSeriesCount(); render();
+  });
+  panel.querySelector('#sel-default').addEventListener('click', () => {
+    selectedKeys = new Set(METRICS.filter(m => m.default).map(m => m.key));
+    persistSelection(); renderPanel(); updateSeriesCount(); render();
+  });
+}
+
+function persistSelection() {
+  localStorage.setItem('packSeriesSelection', JSON.stringify([...selectedKeys]));
+}
+
+function updateSeriesCount() {
+  document.getElementById('series-count').textContent = selectedKeys.size;
+}
+
+document.getElementById('series-btn').addEventListener('click', (e) => {
+  e.stopPropagation();
+  panel.classList.toggle('open');
+});
+document.addEventListener('click', (e) => {
+  if (!panel.contains(e.target) && e.target.id !== 'series-btn') panel.classList.remove('open');
+});
+
+// ---- chart ----
+const chart = new ApexCharts(document.getElementById('chart-pack'), {
+  chart:{ height:520, background:'transparent', toolbar:{show:true, tools:{download:false}}, animations:{enabled:false}, zoom:{enabled:true} },
+  series:[],
+  xaxis:{ type:'datetime', labels:{style:{colors:'#555'}, datetimeUTC:false}, axisBorder:{color:'#222'}, axisTicks:{color:'#222'} },
+  yaxis:[{ labels:{style:{colors:'#555'}} }],
+  grid:{ borderColor:'#1a1a1a' },
+  theme:{ mode:'dark' },
+  stroke:{ curve:'smooth', width:2 },
+  legend:{ labels:{colors:'#888'}, fontSize:'12px' },
+  colors:[],
+  noData:{ text:'No data', style:{color:'#555'} },
+  tooltip:{ theme:'dark', x:{format:'dd MMM HH:mm:ss'} }
+});
+chart.render();
+
+function buildMultiAxisChart(activeMetrics, data) {
+  const groupsInOrder = [...new Set(activeMetrics.map(m => m.group))];
+
+  const series = activeMetrics.map(m => ({
+    name: m.label,
+    data: data.map(r => [new Date(r.readAt).getTime(), metricValue(m, r)])
+  }));
+
+  const yaxis = groupsInOrder.map((g, i) => {
+    const groupMetrics = activeMetrics.filter(m => m.group === g);
+    return {
+      seriesName: groupMetrics.map(m => m.label),
+      title: i < 4 ? { text: `${GROUP_LABELS[g]} (${groupMetrics[0].unit})`, style:{color:'#555', fontSize:'11px'} } : undefined,
+      show: i < 4,
+      opposite: i % 2 === 1,
+      labels:{ show: i < 4, style:{colors:'#555'}, formatter: v => v == null ? '' : v.toFixed(groupMetrics[0].decimals) }
+    };
+  });
+
+  chart.updateOptions({
+    colors: activeMetrics.map(m => m.color),
+    yaxis,
+    tooltip: {
+      theme:'dark', x:{format:'dd MMM HH:mm:ss'},
+      y: activeMetrics.map(m => ({ formatter: v => fmtValue(m, v) }))
+    }
+  }, false, false);
+  chart.updateSeries(series, true);
+}
+
+function buildNormalizedChart(activeMetrics, data) {
+  // Scale each series to 0-100 over its own min/max in the loaded window; tooltip shows the
+  // real value (from rawByIndex), not the normalized one, since the axis itself is meaningless.
+  const rawByIndex = activeMetrics.map(m => data.map(r => metricValue(m, r)));
+
+  const series = activeMetrics.map((m, i) => {
+    const vals = rawByIndex[i].filter(v => v != null);
+    const min = vals.length ? Math.min(...vals) : 0;
+    const max = vals.length ? Math.max(...vals) : 1;
+    const span = (max - min) || 1;
+    return {
+      name: m.label,
+      data: data.map((r, idx) => {
+        const v = rawByIndex[i][idx];
+        return [new Date(r.readAt).getTime(), v == null ? null : ((v - min) / span) * 100];
+      })
+    };
+  });
+
+  chart.updateOptions({
+    colors: activeMetrics.map(m => m.color),
+    yaxis: [{ min:0, max:100, title:{text:'Normalized (%)', style:{color:'#555', fontSize:'11px'}}, labels:{style:{colors:'#555'}, formatter:v=>v.toFixed(0)} }],
+    tooltip: {
+      theme:'dark', x:{format:'dd MMM HH:mm:ss'},
+      custom: ({ series, seriesIndex, dataPointIndex }) => {
+        const m = activeMetrics[seriesIndex];
+        const v = rawByIndex[seriesIndex][dataPointIndex];
+        return `<div style="padding:.5rem .7rem;background:#111;border:1px solid #333;color:#e0e0e0;font-size:.78rem">
+          <span style="color:${m.color}">●</span> ${m.label}: <b>${fmtValue(m, v)}</b></div>`;
+      }
+    }
+  }, false, false);
+  chart.updateSeries(series, true);
+}
+
+function render() {
+  const activeMetrics = METRICS.filter(m => selectedKeys.has(m.key));
+  if (!activeMetrics.length) {
+    chart.updateSeries([], true);
+    return;
+  }
+  if (axisMode === 'normalized') buildNormalizedChart(activeMetrics, latestData);
+  else buildMultiAxisChart(activeMetrics, latestData);
+}
+
+document.querySelectorAll('.mode-btn').forEach(btn => {
+  btn.addEventListener('click', () => {
+    document.querySelectorAll('.mode-btn').forEach(b => b.classList.remove('active'));
+    btn.classList.add('active');
+    axisMode = btn.dataset.mode;
+    localStorage.setItem('packAxisMode', axisMode);
+    render();
+  });
+});
+document.querySelector(`.mode-btn[data-mode="${axisMode}"]`)?.classList.add('active');
+document.querySelectorAll('.mode-btn').forEach(b => { if (b.dataset.mode !== axisMode) b.classList.remove('active'); });
+
+async function loadHistory(hours) {
+  document.getElementById('ts').textContent = 'Loading…';
+  const data = await fetch(`/api/pack/history?hours=${hours}`).then(r=>r.json()).catch(()=>[]);
+  latestData = data;
+  document.getElementById('ts').textContent = `${data.length} data points`;
+  document.getElementById('row-count').textContent = `${data.length} readings`;
+  render();
+}
+
+document.querySelectorAll('.range-btn').forEach(btn => {
+  btn.addEventListener('click', () => {
+    document.querySelectorAll('.range-btn').forEach(b=>b.classList.remove('active'));
+    btn.classList.add('active');
+    currentHours = +btn.dataset.h;
+    loadHistory(currentHours);
+  });
+});
+
+renderPanel();
+updateSeriesCount();
+loadHistory(currentHours);
+
+// Battery Balancing depends entirely on the fake meter — hide its nav link when disabled.
+fetch('/api/froniusmeter/status').then(r => r.ok ? r.json() : null).catch(() => null).then(d => {
+  document.getElementById('nav-battery-balancing').style.display = d && d.enabled ? '' : 'none';
+});
+</script>
+</body>
+</html>

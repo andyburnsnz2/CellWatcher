@@ -474,7 +474,71 @@ SELECT
     s.max_cell_v,
     s.cell_delta_mv,
     s.min_cell_no,
-    s.max_cell_no
+    s.max_cell_no,
+    s.cell_count,
+    (
+        SELECT p.soc_real_percent
+        FROM battery_pack_reading p
+        WHERE p.read_at <= s.read_at
+        ORDER BY p.read_at DESC
+        LIMIT 1
+    ) AS soc_real_percent,
+    (
+        SELECT p.state_of_health_percent
+        FROM battery_pack_reading p
+        WHERE p.read_at <= s.read_at
+        ORDER BY p.read_at DESC
+        LIMIT 1
+    ) AS state_of_health_percent,
+    (
+        SELECT p.max_discharge_power_w
+        FROM battery_pack_reading p
+        WHERE p.read_at <= s.read_at
+        ORDER BY p.read_at DESC
+        LIMIT 1
+    ) AS max_discharge_power_w,
+    (
+        SELECT p.max_charge_power_w
+        FROM battery_pack_reading p
+        WHERE p.read_at <= s.read_at
+        ORDER BY p.read_at DESC
+        LIMIT 1
+    ) AS max_charge_power_w,
+    (
+        SELECT p.remaining_capacity_wh
+        FROM battery_pack_reading p
+        WHERE p.read_at <= s.read_at
+        ORDER BY p.read_at DESC
+        LIMIT 1
+    ) AS remaining_capacity_wh,
+    (
+        SELECT p.total_capacity_wh
+        FROM battery_pack_reading p
+        WHERE p.read_at <= s.read_at
+        ORDER BY p.read_at DESC
+        LIMIT 1
+    ) AS total_capacity_wh,
+    (
+        SELECT p.charged_energy_wh
+        FROM battery_pack_reading p
+        WHERE p.read_at <= s.read_at
+        ORDER BY p.read_at DESC
+        LIMIT 1
+    ) AS charged_energy_wh,
+    (
+        SELECT p.discharged_energy_wh
+        FROM battery_pack_reading p
+        WHERE p.read_at <= s.read_at
+        ORDER BY p.read_at DESC
+        LIMIT 1
+    ) AS discharged_energy_wh,
+    (
+        SELECT p.cpu_temp_c
+        FROM battery_pack_reading p
+        WHERE p.read_at <= s.read_at
+        ORDER BY p.read_at DESC
+        LIMIT 1
+    ) AS cpu_temp_c
 FROM battery_cell_snapshot s
 WHERE s.read_at > @from_time
   AND s.read_at <= @to_time
@@ -503,7 +567,17 @@ ORDER BY s.read_at;";
                 GetNullableDecimal(reader, "max_cell_v"),
                 GetNullableDecimal(reader, "cell_delta_mv"),
                 GetNullableInt32(reader, "min_cell_no"),
-                GetNullableInt32(reader, "max_cell_no")));
+                GetNullableInt32(reader, "max_cell_no"),
+                GetNullableInt32(reader, "cell_count"),
+                GetNullableDecimal(reader, "soc_real_percent"),
+                GetNullableDecimal(reader, "state_of_health_percent"),
+                GetNullableDecimal(reader, "max_discharge_power_w"),
+                GetNullableDecimal(reader, "max_charge_power_w"),
+                GetNullableDecimal(reader, "remaining_capacity_wh"),
+                GetNullableDecimal(reader, "total_capacity_wh"),
+                GetNullableDecimal(reader, "charged_energy_wh"),
+                GetNullableDecimal(reader, "discharged_energy_wh"),
+                GetNullableDecimal(reader, "cpu_temp_c")));
         }
 
         return samples;
@@ -939,10 +1013,13 @@ ORDER BY cell_no, window_minutes;";
                "OK";
     }
 
+    // reader.GetDecimal() unboxes with a strict CLR-type match, which throws for columns whose
+    // underlying type isn't exactly DECIMAL (e.g. an INT/BIGINT UNSIGNED column comes back boxed
+    // as UInt64). Convert.ToDecimal handles any numeric CLR type the connector might hand back.
     private static decimal? GetNullableDecimal(MySqlDataReader reader, string columnName)
     {
         var ordinal = reader.GetOrdinal(columnName);
-        return reader.IsDBNull(ordinal) ? null : reader.GetDecimal(ordinal);
+        return reader.IsDBNull(ordinal) ? null : Convert.ToDecimal(reader.GetValue(ordinal));
     }
 
     private static int? GetNullableInt32(MySqlDataReader reader, string columnName)
