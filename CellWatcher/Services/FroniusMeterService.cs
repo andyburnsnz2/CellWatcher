@@ -114,7 +114,7 @@ public sealed class FroniusMeterService : BackgroundService
                 "Fronius fake-meter: inverter WROTE to holding registers on unit {UnitIdentifier}: addresses [{Addresses}]",
                 e.UnitIdentifier, string.Join(", ", e.Registers));
 
-        await FroniusMeterFirewallHelper.EnsureInboundRuleAsync(listenPort, _logger, stoppingToken);
+        await FirewallHelper.EnsureInboundRuleAsync("FroniusMeter", listenPort, _logger, stoppingToken);
 
         try
         {

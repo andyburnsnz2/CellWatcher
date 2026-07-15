@@ -35,6 +35,7 @@ builder.Services.AddSingleton(
 builder.Services.AddSingleton<MariaDbService>();
 builder.Services.AddSingleton<MqttDiscoveryService>();
 builder.Services.AddSingleton<NotificationService>();
+builder.Services.AddSingleton<PortDiagnosticsService>();
 builder.Services.AddSingleton(new AppStartupArgs(args));
 
 // Captures Error/Critical log entries from anywhere in the app into the application_error

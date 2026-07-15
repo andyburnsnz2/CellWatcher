@@ -130,6 +130,15 @@ public static class ApiEndpoints
             }
         });
 
+        app.MapPost("/api/network/port-test", async (PortTestRequest req, PortDiagnosticsService diagnostics, CancellationToken ct) =>
+            Results.Json(await diagnostics.TestAsync(req.Label, req.Port, ParseRole(req.Role), ct)));
+
+        app.MapPost("/api/network/port-open", async (PortTestRequest req, PortDiagnosticsService diagnostics, ILoggerFactory loggerFactory, CancellationToken ct) =>
+        {
+            var (success, message) = await diagnostics.OpenAsync(req.Label, req.Port, ParseRole(req.Role), loggerFactory.CreateLogger("PortDiagnostics"), ct);
+            return Results.Ok(new { success, message });
+        });
+
         app.MapGet("/api/prompts/defaults", () =>
             Results.Json(new { quickSystemPrompt = InsightPrompts.DefaultQuickSystemPrompt, deepSystemPrompt = InsightPrompts.DefaultDeepSystemPrompt }));
 
@@ -510,6 +519,9 @@ public static class ApiEndpoints
         });
     }
 
+    private static PortRole ParseRole(string role) =>
+        string.Equals(role, "ConnectOut", StringComparison.OrdinalIgnoreCase) ? PortRole.ConnectOut : PortRole.Listen;
+
     private static IEnumerable<string> ExceptionChain(Exception ex)
     {
         for (var current = ex; current is not null; current = current.InnerException)
@@ -583,6 +595,8 @@ public sealed record BatterySelectionRequest(int? BatteryTypeId);
 public sealed record ChatRequest(string Engine, List<ChatMessage> Messages);
 
 public sealed record MqttDetectRequest(string? Host, int Port, string? Username, string? Password);
+
+public sealed record PortTestRequest(string Label, int Port, string Role);
 
 public sealed record NotificationTestRequest(
     string Host, int Port, bool EnableSsl, string? Username, string? Password,

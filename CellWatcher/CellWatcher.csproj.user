@@ -2,5 +2,6 @@
 <Project ToolsVersion="Current" xmlns="http://schemas.microsoft.com/developer/msbuild/2003">
   <PropertyGroup>
     <_LastSelectedProfileId>C:\Source\CellWatcher\CellWatcher\Properties\PublishProfiles\FolderProfile.pubxml</_LastSelectedProfileId>
+    <NameOfLastUsedPublishProfile>C:\Source\Cell Watcher\CellWatcher\Properties\PublishProfiles\FolderProfile1.pubxml</NameOfLastUsedPublishProfile>
   </PropertyGroup>
 </Project>
