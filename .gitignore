@@ -4,3 +4,4 @@
 .pio/
 publish/
 Installer/cache/
+CellWatcher/appsettings.json
