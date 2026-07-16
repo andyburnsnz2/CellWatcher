@@ -1,0 +1,9 @@
+﻿<?xml version="1.0" encoding="utf-8"?>
+<!-- https://go.microsoft.com/fwlink/?LinkID=208121. -->
+<Project>
+  <PropertyGroup>
+    <_PublishTargetUrl>\\SOLARSYSTEMSUPP\CellWatcher</_PublishTargetUrl>
+    <History>True|2026-07-15T09:25:48.5906575Z||;True|2026-07-15T21:23:37.6518256+12:00||;False|2026-07-15T21:22:40.6503064+12:00||;True|2026-07-15T19:46:41.3555518+12:00||;True|2026-07-13T19:36:26.0873801+12:00||;True|2026-07-13T19:14:36.1524912+12:00||;False|2026-07-13T19:13:41.6107650+12:00||;True|2026-07-13T18:43:12.3075776+12:00||;True|2026-07-13T18:33:41.9447706+12:00||;</History>
+    <LastFailureDetails />
+  </PropertyGroup>
+</Project>
