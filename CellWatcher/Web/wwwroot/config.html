@@ -37,6 +37,8 @@ input:focus,select:focus,textarea:focus{border-color:#6ec62a}
 .btn-sm:hover{border-color:#555;color:#fff}
 .btn-sm-primary{background:#1a3a0a;border-color:#3a7a19;color:#6ec62a}
 .btn-sm-primary:hover{background:#2a5a14}
+.pill{display:inline-flex;align-items:center;padding:.1rem .5rem;border-radius:999px;font-size:.65rem;font-weight:700;white-space:nowrap}
+.pill.alert{background:#3b0404;color:#f87171}
 .checkbox-row{display:flex;align-items:center;gap:.6rem;padding:.4rem 0;font-size:.85rem;cursor:pointer}
 .checkbox-row:not(:last-child){margin-bottom:.25rem}
 .checkbox-row input[type=checkbox]{width:auto;accent-color:#6ec62a;cursor:pointer}
@@ -113,7 +115,7 @@ table.mapping tr:last-child td{border-bottom:none}
     <span class="brand">CellWatcher</span>    <a href="/">Dashboard</a>
     <a href="/cells.html">Cells</a>
     <a href="/pack.html">Pack</a>
-    <a href="/health.html">Health</a>
+    <a href="/ai.html">AI</a>
     <a href="/battery-balancing.html" id="nav-battery-balancing">Battery Balancing</a>
     <a href="/canbus.html">Canbus</a>
     <a href="/config.html" class="on">Config</a>
@@ -132,6 +134,7 @@ table.mapping tr:last-child td{border-bottom:none}
       <button class="sec-tab" data-sec="sec-batterybalancing" id="tab-batterybalancing">Battery Balancing</button>
       <button class="sec-tab" data-sec="sec-batterytype">Battery Type</button>
       <button class="sec-tab" data-sec="sec-server">Server</button>
+      <button class="sec-tab" data-sec="sec-diagnostics">Diagnostics</button>
     </div>
 
     <div class="save-bar">
@@ -549,7 +552,7 @@ table.mapping tr:last-child td{border-bottom:none}
       <textarea id="Prompts_QuickSystemPrompt" rows="10"></textarea>
     </div>
     <div class="field" style="grid-template-columns:1fr;margin-top:1rem">
-      <div class="field-label"><div class="field-name">Deep Analysis Prompt (AI Search)</div><div class="field-desc">Sent with every deep analysis on the Health page's AI Search tab</div></div>
+      <div class="field-label"><div class="field-name">Deep Analysis Prompt (AI Search)</div><div class="field-desc">Sent with every deep analysis on the AI page's AI Search tab</div></div>
       <textarea id="Prompts_DeepSystemPrompt" rows="14"></textarea>
     </div>
   </div>
@@ -910,6 +913,25 @@ table.mapping tr:last-child td{border-bottom:none}
   </div>
   <!-- /Section: Server -->
 
+  <!-- Section: Diagnostics -->
+  <div id="sec-diagnostics" class="section">
+
+  <div class="card">
+    <div style="display:flex;align-items:center;gap:.75rem;margin-bottom:.75rem;flex-wrap:wrap">
+      <div class="section-head" style="margin-bottom:0;padding-bottom:0;border-bottom:none">Application Errors</div>
+      <span class="muted" id="errors-count" style="font-size:.72rem"></span>
+      <span class="muted" id="errors-last-refreshed" style="font-size:.68rem"></span>
+      <button id="errors-refresh-btn" onclick="loadErrors()" class="ml btn-sm" style="margin-left:auto">Refresh</button>
+      <button id="errors-clear-btn" onclick="clearErrors()" class="btn-sm" style="border-color:#3b0404;color:#f87171">Clear all</button>
+    </div>
+    <div id="errors-list" style="display:flex;flex-direction:column;gap:.5rem;max-height:600px;overflow-y:auto">
+      <div class="muted" style="font-size:.85rem">Loading…</div>
+    </div>
+  </div>
+
+  </div>
+  <!-- /Section: Diagnostics -->
+
 </div>
 
 <div class="toast" id="toast"></div>
@@ -922,14 +944,82 @@ table.mapping tr:last-child td{border-bottom:none}
 
 <script>
 // Section tab switching
+let errorsLoaded = false;
 document.querySelectorAll('.sec-tab').forEach(btn => {
   btn.addEventListener('click', () => {
     document.querySelectorAll('.sec-tab').forEach(t => t.classList.remove('active'));
     document.querySelectorAll('.section').forEach(s => s.classList.remove('active'));
     btn.classList.add('active');
     document.getElementById(btn.dataset.sec).classList.add('active');
+    // Lazy-load the error log when the Diagnostics tab first becomes visible
+    if (btn.dataset.sec === 'sec-diagnostics' && !errorsLoaded) {
+      loadErrors();
+      errorsLoaded = true;
+    }
   });
 });
+
+// ── Application Errors (Diagnostics tab) ────────────────────────────────
+function toggleErrorItem(idx) {
+  const el = document.getElementById('error-detail-' + idx);
+  const arrowEl = document.getElementById('error-arrow-' + idx);
+  const expanded = el.style.display !== 'none';
+  el.style.display = expanded ? 'none' : 'block';
+  arrowEl.textContent = expanded ? '▾' : '▴';
+}
+
+function renderErrorItem(e, idx) {
+  const hasDetail = !!(e.exceptionType || e.stackTrace);
+  return `<div class="card" style="padding:.6rem .9rem;margin-bottom:0;${hasDetail ? 'cursor:pointer' : ''}" ${hasDetail ? `onclick="toggleErrorItem(${idx})"` : ''}>
+    <div style="display:flex;align-items:center;gap:.65rem;flex-wrap:wrap">
+      <span class="pill alert">ERROR</span>
+      <span class="muted" style="font-size:.78rem">${new Date(e.occurredAt).toLocaleString()}</span>
+      <span style="font-family:monospace;font-size:.72rem;color:#888">${escapeHtml(e.source)}</span>
+      ${hasDetail ? `<span class="muted" id="error-arrow-${idx}" style="margin-left:auto;font-size:.68rem">▾</span>` : ''}
+    </div>
+    <div style="margin-top:.4rem;font-size:.82rem;color:#ccc">${escapeHtml(e.message)}</div>
+    ${hasDetail ? `<div id="error-detail-${idx}" style="display:none;margin-top:.6rem">
+      ${e.exceptionType ? `<div class="muted" style="font-size:.7rem;margin-bottom:.35rem">${escapeHtml(e.exceptionType)}</div>` : ''}
+      ${e.stackTrace ? `<pre style="white-space:pre-wrap;font-size:.72rem;color:#888;margin:0">${escapeHtml(e.stackTrace)}</pre>` : ''}
+    </div>` : ''}
+  </div>`;
+}
+
+async function loadErrors() {
+  const list = document.getElementById('errors-list');
+  const btn = document.getElementById('errors-refresh-btn');
+  btn.disabled = true;
+  btn.textContent = 'Refreshing…';
+
+  // no-store: without this, some browsers can serve a stale cached response for this
+  // GET, which made Refresh look like it wasn't doing anything.
+  const data = await fetch('/api/errors?limit=100', { cache: 'no-store' })
+    .then(r => r.ok ? r.json() : [])
+    .catch(() => []);
+
+  document.getElementById('errors-count').textContent = data.length ? `${data.length} errors` : '';
+  document.getElementById('errors-last-refreshed').textContent = 'Refreshed ' + new Date().toLocaleTimeString();
+  list.innerHTML = data.length
+    ? data.map((e, i) => renderErrorItem(e, i)).join('')
+    : '<div class="muted" style="font-size:.85rem">No errors logged.</div>';
+
+  btn.disabled = false;
+  btn.textContent = 'Refresh';
+}
+
+async function clearErrors() {
+  if (!confirm('Delete all logged errors? This cannot be undone.')) return;
+
+  const btn = document.getElementById('errors-clear-btn');
+  btn.disabled = true;
+  btn.textContent = 'Clearing…';
+
+  await fetch('/api/errors', { method: 'DELETE' }).catch(() => null);
+
+  btn.disabled = false;
+  btn.textContent = 'Clear all';
+  await loadErrors();
+}
 
 const fields = [
   ['Mqtt_Mode',                      ['Mqtt','Mode'],                      'string'],

@@ -57,7 +57,7 @@ nav{background:#111;border-bottom:1px solid #222;position:sticky;top:0;z-index:1
     <a href="/" class="on">Dashboard</a>
     <a href="/cells.html">Cells</a>
     <a href="/pack.html">Pack</a>
-    <a href="/health.html">Health</a>
+    <a href="/ai.html">AI</a>
     <a href="/battery-balancing.html" id="nav-battery-balancing">Battery Balancing</a>
     <a href="/canbus.html">Canbus</a>
     <a href="/config.html">Config</a>
@@ -105,6 +105,16 @@ nav{background:#111;border-bottom:1px solid #222;position:sticky;top:0;z-index:1
     <div class="flex-center muted" style="font-size:.8rem">Last done <span id="balancing-last-done" style="margin-left:.35rem;color:#888;font-weight:500">—</span></div>
     <div class="flex-center muted" style="font-size:.8rem" id="balancing-next-start-row">Next start <span id="balancing-next-start" style="margin-left:.35rem;color:#888;font-weight:500">—</span></div>
     <a href="/battery-balancing.html" class="ml muted" style="font-size:.78rem">View →</a>
+  </div>
+
+  <!-- Balance Status — the automated analyzer's own synthesized recommendation (deterministic,
+       not AI-generated), shown regardless of severity so "everything's fine" is visible too, not
+       just problems (the Alerts card below only ever shows WARN/ALERT). -->
+  <div class="card mt2" id="balance-status-card" style="display:none">
+    <div class="card-title">Balance Status</div>
+    <div id="balance-status-body" class="flex-center" style="gap:.75rem;flex-wrap:wrap">
+      <span class="muted" style="font-size:.85rem">Loading…</span>
+    </div>
   </div>
 
   <!-- AI Insights -->
@@ -386,8 +396,19 @@ async function loadLive() {
   ev.className = 'pill ' + sev(d.eventLevel);
 }
 
+function renderBalanceStatus(metrics) {
+  const card = document.getElementById('balance-status-card');
+  const action = metrics.find(m => m.metricName === 'pack_manual_balance_action');
+  if (!action) { card.style.display = 'none'; return; }
+  card.style.display = '';
+  document.getElementById('balance-status-body').innerHTML = `
+    <span class="pill ${sev(action.severity)}" style="flex-shrink:0">${action.severity}</span>
+    <span style="font-size:.85rem">${action.message || ''}</span>`;
+}
+
 async function loadAlerts() {
   const metrics = await fetch('/api/metrics/latest').then(r=>r.json()).catch(()=>[]);
+  renderBalanceStatus(metrics);
   const alerts = metrics.filter(m=>m.severity==='ALERT'||m.severity==='WARN');
   const el = document.getElementById('alerts');
   if (!alerts.length) {

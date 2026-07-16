@@ -64,7 +64,7 @@ input[type=range]::-moz-range-thumb{width:18px;height:18px;border-radius:50%;bac
     <span class="brand">CellWatcher</span>    <a href="/">Dashboard</a>
     <a href="/cells.html" class="on">Cells</a>
     <a href="/pack.html">Pack</a>
-    <a href="/health.html">Health</a>
+    <a href="/ai.html">AI</a>
     <a href="/battery-balancing.html" id="nav-battery-balancing">Battery Balancing</a>
     <a href="/canbus.html">Canbus</a>
     <a href="/config.html">Config</a>
@@ -114,6 +114,7 @@ input[type=range]::-moz-range-thumb{width:18px;height:18px;border-radius:50%;bac
       <span><span style="color:#60a5fa;font-weight:700">▼</span> Min cell</span>
       <span><span style="color:#f472b6;font-weight:700">▲</span> Max cell</span>
       <span><span style="color:#fbbf24;font-weight:700">B</span> Balancing</span>
+      <span><span style="color:#fb923c;font-weight:700">⚠</span> Sustained 24h deviation (WARN/ALERT)</span>
     </div>
   </div>
 
@@ -179,6 +180,24 @@ function computeCellStats(data) {
   return { keys, vals, avg, minV, maxV, minK, maxK };
 }
 
+// Rolling 24h avg-deviation-from-pack-average per cell, from the automated health analyzer —
+// independent of (and complementary to) the point-in-time deviation coloring above, which only
+// reflects whichever single moment is currently being viewed. Refreshed periodically rather than
+// per-scrub-tick since the analyzer itself only reruns every few minutes (see BatteryAnalysis:
+// IntervalMinutes in Config). Cells with OK/INFO severity get no badge at all — only WARN/ALERT,
+// so a well-balanced pack shows a clean grid instead of 108 badges nobody needs to read.
+let cellHealthByCellNo = {};
+
+async function loadCellHealth() {
+  const summaries = await fetch('/api/cell-health/latest').then(r => r.ok ? r.json() : []).catch(() => []);
+  cellHealthByCellNo = {};
+  for (const s of summaries) {
+    if (s.windowMinutes !== 1440) continue;
+    cellHealthByCellNo[s.cellNo] = s;
+  }
+  if (lastCellData) renderCells(lastCellData);
+}
+
 function renderCellGrid(data, stats) {
   const balancing = data.cellBalancing || {};
   const { keys, avg, minK, maxK } = stats;
@@ -191,6 +210,8 @@ function renderCellGrid(data, stats) {
     const isBal = !!balancing[k];
     const isMin = k === minK;
     const isMax = k === maxK;
+    const health = cellHealthByCellNo[k];
+    const isUnhealthy = health && (health.severity === 'WARN' || health.severity === 'ALERT');
 
     let border = `1px solid ${s.border}`;
     if (isMin) border = '2px solid #60a5fa';
@@ -199,10 +220,15 @@ function renderCellGrid(data, stats) {
     const flags = [
       isMin ? `<span class="cell-flag" style="left:2px;right:auto;color:#60a5fa">▼</span>` : '',
       isMax ? `<span class="cell-flag" style="color:#f472b6">▲</span>` : '',
-      isBal ? `<span class="cell-flag" style="top:auto;bottom:2px;right:3px;color:#fbbf24">B</span>` : ''
+      isBal ? `<span class="cell-flag" style="top:auto;bottom:2px;right:3px;color:#fbbf24">B</span>` : '',
+      isUnhealthy ? `<span class="cell-flag" style="top:auto;bottom:2px;left:2px;right:auto;color:${health.severity === 'ALERT' ? '#f87171' : '#fb923c'}">⚠</span>` : ''
     ].join('');
 
-    return `<div class="cell" style="background:${s.bg};border:${border}" title="Cell ${k}\nVoltage: ${v.toFixed(4)} V\nDeviation: ${dev>=0?'+':''}${dev.toFixed(2)} mV${isBal?' · Balancing':''}">
+    const healthTitle = isUnhealthy
+      ? `\n24h avg deviation: ${health.avgDeviationMv>=0?'+':''}${(+health.avgDeviationMv).toFixed(2)} mV (${health.severity})`
+      : '';
+
+    return `<div class="cell" style="background:${s.bg};border:${border}" title="Cell ${k}\nVoltage: ${v.toFixed(4)} V\nDeviation: ${dev>=0?'+':''}${dev.toFixed(2)} mV${isBal?' · Balancing':''}${healthTitle}">
       <div class="cell-num">${k}</div>
       <div class="cell-v" style="color:${s.text}">${v.toFixed(3)}</div>
       <div class="cell-dev" style="color:${s.text}">${dev>=0?'+':''}${dev.toFixed(1)}</div>
@@ -771,6 +797,8 @@ updateSliderFill();
 loadLive();
 startLiveTimer();
 loadRangeCache();
+loadCellHealth();
+setInterval(loadCellHealth, 60000);
 
 // Battery Balancing depends entirely on the fake meter — hide its nav link when disabled.
 fetch('/api/froniusmeter/status').then(r => r.ok ? r.json() : null).catch(() => null).then(d => {

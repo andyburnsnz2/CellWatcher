@@ -3,9 +3,8 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width,initial-scale=1">
-<title>CellWatcher — Health</title>
+<title>CellWatcher — AI</title>
 <link rel="icon" href="/img/cellwatcher.png">
-<script src="https://cdn.jsdelivr.net/npm/apexcharts@3.45.0/dist/apexcharts.min.js"></script>
 <style>
 *,*::before,*::after{box-sizing:border-box}
 html{overflow-y:scroll}
@@ -36,27 +35,6 @@ nav{background:#111;border-bottom:1px solid #222;position:sticky;top:0;z-index:1
 .sec-tab.active{color:#6ec62a;border-bottom-color:#6ec62a;font-weight:600}
 .section{display:none}
 .section.active{display:block}
-/* Severity filter tabs — within metrics section */
-.tabs{display:flex;gap:.35rem;margin-bottom:1rem;flex-wrap:wrap}
-.tab{background:#0a0a0a;border:1px solid #222;color:#888;padding:.3rem .9rem;border-radius:4px;cursor:pointer;font-size:.8rem;transition:all .15s}
-.tab:hover{border-color:#555;color:#e0e0e0}
-.tab.active{font-weight:600}
-.tab-all.active{background:#222;border-color:#222;color:#f0f0f0}
-.tab-alert.active{background:#3b0404;border-color:#dc2626;color:#f87171}
-.tab-warn.active{background:#421c02;border-color:#d97706;color:#fbbf24}
-.tab-info.active{background:#0c1a4a;border-color:#2563eb;color:#60a5fa}
-.tab-ok.active{background:#0a2008;border-color:#16a34a;color:#6ec62a}
-/* Metric table */
-.tbl{width:100%;border-collapse:collapse}
-.tbl th{text-align:left;padding:.4rem .6rem;font-size:.65rem;text-transform:uppercase;letter-spacing:.06em;color:#555;border-bottom:1px solid #222;white-space:nowrap;position:sticky;top:0;background:#111;z-index:1}
-.tbl td{padding:.35rem .6rem;border-bottom:1px solid #111;font-size:.8rem;vertical-align:middle}
-.tbl tr:hover td{background:#0a0a0a}
-.tbl td.num{text-align:right;font-variant-numeric:tabular-nums;font-family:monospace;font-size:.78rem}
-/* Cell health grid */
-.cell-health-grid{display:grid;grid-template-columns:repeat(12,1fr);gap:4px;margin-top:.5rem}
-.ch-cell{padding:6px 4px 5px;border-radius:5px;text-align:center;border:1px solid transparent;font-size:.65rem}
-.ch-cell-no{color:rgba(255,255,255,.35);line-height:1;margin-bottom:2px;font-size:.6rem}
-.ch-dev{font-weight:700;line-height:1.2;font-size:.72rem}
 /* AI Search tab */
 .field-label-sm{font-size:.68rem;text-transform:uppercase;letter-spacing:.06em;color:#555;margin-bottom:.3rem}
 select,input[type=datetime-local]{background:#000;border:1px solid #222;color:#e0e0e0;padding:.4rem .65rem;border-radius:5px;font-size:.85rem;outline:none;transition:border-color .15s}
@@ -86,7 +64,7 @@ select:focus,input[type=datetime-local]:focus{border-color:#6ec62a}
     <span class="brand">CellWatcher</span>    <a href="/">Dashboard</a>
     <a href="/cells.html">Cells</a>
     <a href="/pack.html">Pack</a>
-    <a href="/health.html" class="on">Health</a>
+    <a href="/ai.html" class="on">AI</a>
     <a href="/battery-balancing.html" id="nav-battery-balancing">Battery Balancing</a>
     <a href="/canbus.html">Canbus</a>
     <a href="/config.html">Config</a>
@@ -101,76 +79,13 @@ select:focus,input[type=datetime-local]:focus{border-color:#6ec62a}
   <div class="sticky-subnav">
     <!-- Section tab bar -->
     <div class="sec-tab-bar">
-      <button class="sec-tab active" data-sec="sec-metrics">Metric Snapshot</button>
-      <button class="sec-tab" data-sec="sec-h1">Cell Health — 1h</button>
-      <button class="sec-tab" data-sec="sec-h24">Cell Health — 24h</button>
-      <button class="sec-tab" data-sec="sec-dev">Deviation Chart</button>
-      <button class="sec-tab" data-sec="sec-ai">AI Search</button>
+      <button class="sec-tab active" data-sec="sec-ai">AI Search</button>
       <button class="sec-tab" data-sec="sec-chat">AI Chat</button>
-      <button class="sec-tab" data-sec="sec-errors">Errors</button>
-    </div>
-  </div>
-
-  <!-- Section: Latest metrics table -->
-  <div id="sec-metrics" class="section active">
-    <div class="card">
-      <div class="card-title">Latest Metric Snapshot</div>
-      <div class="tabs">
-        <button class="tab tab-all active" data-sev="">All</button>
-        <button class="tab tab-alert" data-sev="ALERT">Alert</button>
-        <button class="tab tab-warn" data-sev="WARN">Warning</button>
-        <button class="tab tab-info" data-sev="INFO">Info</button>
-        <button class="tab tab-ok" data-sev="OK">OK</button>
-        <span class="ml muted" id="metric-count" style="font-size:.75rem;align-self:center"></span>
-      </div>
-      <div style="overflow-x:auto;overflow-y:auto;max-height:420px">
-        <table class="tbl">
-          <thead>
-            <tr>
-              <th>Severity</th>
-              <th>Scope</th>
-              <th>Cell</th>
-              <th>Window</th>
-              <th>Metric</th>
-              <th style="text-align:right">Value</th>
-              <th>Unit</th>
-              <th style="min-width:260px">Message</th>
-            </tr>
-          </thead>
-          <tbody id="metric-tbody">
-            <tr><td colspan="8" class="muted" style="padding:1rem">Loading…</td></tr>
-          </tbody>
-        </table>
-      </div>
-    </div>
-  </div>
-
-  <!-- Section: Cell health 1h -->
-  <div id="sec-h1" class="section">
-    <div class="card">
-      <div class="card-title">Per-Cell Health — 1 Hour Window (avg deviation from pack average)</div>
-      <div id="cell-health-1h" class="cell-health-grid"></div>
-    </div>
-  </div>
-
-  <!-- Section: Cell health 24h -->
-  <div id="sec-h24" class="section">
-    <div class="card">
-      <div class="card-title">Per-Cell Health — 24 Hour Window (avg deviation from pack average)</div>
-      <div id="cell-health-24h" class="cell-health-grid"></div>
-    </div>
-  </div>
-
-  <!-- Section: Deviation chart -->
-  <div id="sec-dev" class="section">
-    <div class="card">
-      <div class="card-title">Cell Average Deviation — 24h Window (mV, sorted by cell number)</div>
-      <div id="chart-deviation"></div>
     </div>
   </div>
 
   <!-- Section: AI Search -->
-  <div id="sec-ai" class="section">
+  <div id="sec-ai" class="section active">
     <div class="card">
       <div class="card-title">AI Deep Analysis</div>
       <div style="display:flex;gap:1rem;align-items:flex-end;flex-wrap:wrap;margin-bottom:1.25rem">
@@ -237,22 +152,6 @@ select:focus,input[type=datetime-local]:focus{border-color:#6ec62a}
     </div>
   </div>
 
-  <!-- Section: Errors -->
-  <div id="sec-errors" class="section">
-    <div class="card">
-      <div style="display:flex;align-items:center;gap:.75rem;margin-bottom:.75rem;flex-wrap:wrap">
-        <div class="card-title" style="margin-bottom:0">Application Errors</div>
-        <span class="muted" id="errors-count" style="font-size:.72rem"></span>
-        <span class="muted" id="errors-last-refreshed" style="font-size:.68rem"></span>
-        <button id="errors-refresh-btn" onclick="loadErrors()" class="ml" style="background:none;border:1px solid #222;color:#888;padding:.3rem .8rem;border-radius:5px;cursor:pointer;font-size:.78rem">Refresh</button>
-        <button id="errors-clear-btn" onclick="clearErrors()" style="background:none;border:1px solid #3b0404;color:#f87171;padding:.3rem .8rem;border-radius:5px;cursor:pointer;font-size:.78rem">Clear all</button>
-      </div>
-      <div id="errors-list" style="display:flex;flex-direction:column;gap:.5rem;max-height:600px;overflow-y:auto">
-        <div class="muted" style="font-size:.85rem">Loading…</div>
-      </div>
-    </div>
-  </div>
-
 </div>
 
 <div class="restart-overlay" id="progress-overlay">
@@ -262,8 +161,6 @@ select:focus,input[type=datetime-local]:focus{border-color:#6ec62a}
 </div>
 
 <script>
-const sev = s => ({'ALERT':'alert','WARN':'warn','INFO':'info'}[s?.toUpperCase()]??'ok');
-const n = (v,d=2) => v==null ? '—' : (+v).toFixed(d);
 const escapeHtml = s => String(s).replace(/[&<>"']/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
 
 // Traffic-light badge for an AI analysis's parsed STATUS line (OK/WATCH/ACT/unknown).
@@ -305,15 +202,9 @@ function startStagedProgress(title, stages) {
   return () => timers.forEach(clearTimeout);
 }
 
-let allMetrics = [];
-let cellHealthData = [];
-let currentFilter = '';
-let deviationChart = null;
-let deviationChartReady = false;
 let aiHistoryLoaded = false;
 let chatEnginesLoaded = false;
 let chatHistory = [];
-let errorsLoaded = false;
 
 // Section tab switching
 document.querySelectorAll('.sec-tab').forEach(btn => {
@@ -323,148 +214,13 @@ document.querySelectorAll('.sec-tab').forEach(btn => {
     btn.classList.add('active');
     const sec = document.getElementById(btn.dataset.sec);
     sec.classList.add('active');
-    // Lazy-render deviation chart when its section first becomes visible
-    if (btn.dataset.sec === 'sec-dev' && !deviationChartReady && cellHealthData.length) {
-      renderDeviationChart(cellHealthData);
-      deviationChartReady = true;
-    }
-    // Lazy-load AI analysis history + first count preview when the AI Search tab first becomes visible
-    if (btn.dataset.sec === 'sec-ai' && !aiHistoryLoaded) {
-      loadAiHistory();
-      updateAiPreview();
-      aiHistoryLoaded = true;
-    }
     // Lazy-load which engines are available when the AI Chat tab first becomes visible
     if (btn.dataset.sec === 'sec-chat' && !chatEnginesLoaded) {
       loadChatEngines();
       chatEnginesLoaded = true;
     }
-    // Lazy-load the error log when the Errors tab first becomes visible
-    if (btn.dataset.sec === 'sec-errors' && !errorsLoaded) {
-      loadErrors();
-      errorsLoaded = true;
-    }
   });
 });
-
-// Severity filter tabs
-document.querySelectorAll('.tab').forEach(tab => {
-  tab.addEventListener('click', () => {
-    document.querySelectorAll('.tab').forEach(t => t.classList.remove('active'));
-    tab.classList.add('active');
-    currentFilter = tab.dataset.sev;
-    renderMetrics();
-  });
-});
-
-function renderMetrics() {
-  const filtered = currentFilter ? allMetrics.filter(m => m.severity === currentFilter) : allMetrics;
-  document.getElementById('metric-count').textContent = `${filtered.length} of ${allMetrics.length} metrics`;
-  const tbody = document.getElementById('metric-tbody');
-  if (!filtered.length) {
-    tbody.innerHTML = '<tr><td colspan="8" class="muted" style="padding:.75rem">No metrics match this filter.</td></tr>';
-    return;
-  }
-  tbody.innerHTML = filtered.map(m => `
-    <tr>
-      <td><span class="pill ${sev(m.severity)}">${m.severity}</span></td>
-      <td>${m.scope||''}</td>
-      <td class="num">${m.cellNo!=null?m.cellNo:''}</td>
-      <td class="num">${m.windowMinutes>0?m.windowMinutes+'m':''}</td>
-      <td style="font-family:monospace;font-size:.72rem;color:#888">${m.metricName||''}</td>
-      <td class="num">${n(m.metricValue,3)}</td>
-      <td class="muted">${m.metricUnit||''}</td>
-      <td style="color:#888;font-size:.75rem">${m.message||''}</td>
-    </tr>`).join('');
-}
-
-function deviationStyle(devMv) {
-  const a = Math.abs(devMv);
-  if (a>=25) return {bg:'#3b0404',border:'#dc2626',text:'#f87171'};
-  if (a>=15) return {bg:'#431407',border:'#ea580c',text:'#fb923c'};
-  if (a>=5)  return {bg:'#422006',border:'#d97706',text:'#fbbf24'};
-  return           {bg:'#052e16',border:'#16a34a',text:'#4ade80'};
-}
-
-function renderCellHealth(containerId, summaries, windowMinutes) {
-  const rows = summaries.filter(s => s.windowMinutes === windowMinutes).sort((a,b) => a.cellNo - b.cellNo);
-  if (!rows.length) { document.getElementById(containerId).textContent = 'No data'; return; }
-  document.getElementById(containerId).innerHTML = rows.map(r => {
-    const s = deviationStyle(r.avgDeviationMv);
-    return `<div class="ch-cell" style="background:${s.bg};border:1px solid ${s.border}" title="Cell ${r.cellNo}\nAvg deviation: ${r.avgDeviationMv>=0?'+':''}${(+r.avgDeviationMv).toFixed(2)} mV\nMax deviation: ${(+r.maxDeviationMv).toFixed(2)} mV\nReadings: ${r.readingCount}\nSeverity: ${r.severity}">
-      <div class="ch-cell-no">${r.cellNo}</div>
-      <div class="ch-dev" style="color:${s.text}">${r.avgDeviationMv>=0?'+':''}${(+r.avgDeviationMv).toFixed(1)}</div>
-    </div>`;
-  }).join('');
-}
-
-function renderDeviationChart(summaries) {
-  const rows24 = summaries.filter(s => s.windowMinutes === 1440).sort((a,b) => a.cellNo - b.cellNo);
-  if (!rows24.length) return;
-  const labels = rows24.map(r => r.cellNo);   // numeric cell numbers
-  const values = rows24.map(r => +r.avgDeviationMv);
-  const fillColors = rows24.map(r => {
-    const a = Math.abs(+r.avgDeviationMv);
-    if (a>=25) return '#ef4444';
-    if (a>=15) return '#f97316';
-    if (a>=5)  return '#fbbf24';
-    return '#22c55e';
-  });
-
-  if (deviationChart) deviationChart.destroy();
-  deviationChart = new ApexCharts(document.getElementById('chart-deviation'), {
-    chart:{
-      type:'bar', height:460,
-      background:'transparent',
-      toolbar:{show:false},
-      animations:{enabled:false}
-    },
-    series:[{name:'Deviation',data:values}],
-    xaxis:{
-      categories: labels,
-      tickAmount: 12,                          // ~every 9th cell for 108-cell pack
-      labels:{
-        style:{colors:'#666', fontSize:'11px'},
-        rotate: 0,
-        hideOverlappingLabels: true,
-        formatter: v => `C${v}`
-      },
-      axisBorder:{color:'#333'},
-      axisTicks:{show:false},
-      title:{text:'Cell Number', style:{color:'#555', fontSize:'11px'}}
-    },
-    yaxis:{
-      labels:{
-        style:{colors:'#666'},
-        formatter: v => v.toFixed(1)
-      },
-      title:{text:'mV from avg', style:{color:'#555', fontSize:'11px'}}
-    },
-    colors:['#22c55e'],
-    fill:{colors: fillColors},
-    dataLabels:{enabled:false},
-    grid:{
-      borderColor:'#1a1a1a',
-      yaxis:{lines:{show:true}},
-      xaxis:{lines:{show:false}}
-    },
-    theme:{mode:'dark'},
-    tooltip:{
-      theme:'dark',
-      x:{formatter:(v,opts) => `Cell ${rows24[opts.dataPointIndex]?.cellNo}`},
-      y:{formatter: v => v.toFixed(2)+' mV'}
-    },
-    plotOptions:{bar:{borderRadius:1, columnWidth:'90%'}},
-    annotations:{
-      yaxis:[{
-        y: 0,
-        borderColor:'#555',
-        strokeDashArray: 3
-      }]
-    }
-  });
-  deviationChart.render();
-}
 
 // ── AI Search tab ──────────────────────────────────────────────────────
 document.getElementById('ai-period').addEventListener('change', e => {
@@ -724,68 +480,6 @@ async function sendChatMessage() {
   renderChatMessages();
 }
 
-// ── Errors tab ───────────────────────────────────────────────────────────
-function toggleErrorItem(idx) {
-  const el = document.getElementById('error-detail-' + idx);
-  const arrowEl = document.getElementById('error-arrow-' + idx);
-  const expanded = el.style.display !== 'none';
-  el.style.display = expanded ? 'none' : 'block';
-  arrowEl.textContent = expanded ? '▾' : '▴';
-}
-
-function renderErrorItem(e, idx) {
-  const hasDetail = !!(e.exceptionType || e.stackTrace);
-  return `<div class="card" style="padding:.6rem .9rem;${hasDetail ? 'cursor:pointer' : ''}" ${hasDetail ? `onclick="toggleErrorItem(${idx})"` : ''}>
-    <div style="display:flex;align-items:center;gap:.65rem;flex-wrap:wrap">
-      <span class="pill alert">ERROR</span>
-      <span class="muted" style="font-size:.78rem">${new Date(e.occurredAt).toLocaleString()}</span>
-      <span style="font-family:monospace;font-size:.72rem;color:#888">${escapeHtml(e.source)}</span>
-      ${hasDetail ? `<span class="muted" id="error-arrow-${idx}" style="margin-left:auto;font-size:.68rem">▾</span>` : ''}
-    </div>
-    <div style="margin-top:.4rem;font-size:.82rem;color:#ccc">${escapeHtml(e.message)}</div>
-    ${hasDetail ? `<div id="error-detail-${idx}" style="display:none;margin-top:.6rem">
-      ${e.exceptionType ? `<div class="muted" style="font-size:.7rem;margin-bottom:.35rem">${escapeHtml(e.exceptionType)}</div>` : ''}
-      ${e.stackTrace ? `<pre style="white-space:pre-wrap;font-size:.72rem;color:#888;margin:0">${escapeHtml(e.stackTrace)}</pre>` : ''}
-    </div>` : ''}
-  </div>`;
-}
-
-async function loadErrors() {
-  const list = document.getElementById('errors-list');
-  const btn = document.getElementById('errors-refresh-btn');
-  btn.disabled = true;
-  btn.textContent = 'Refreshing…';
-
-  // no-store: without this, some browsers can serve a stale cached response for this
-  // GET, which made Refresh look like it wasn't doing anything.
-  const data = await fetch('/api/errors?limit=100', { cache: 'no-store' })
-    .then(r => r.ok ? r.json() : [])
-    .catch(() => []);
-
-  document.getElementById('errors-count').textContent = data.length ? `${data.length} errors` : '';
-  document.getElementById('errors-last-refreshed').textContent = 'Refreshed ' + new Date().toLocaleTimeString();
-  list.innerHTML = data.length
-    ? data.map((e, i) => renderErrorItem(e, i)).join('')
-    : '<div class="muted" style="font-size:.85rem">No errors logged.</div>';
-
-  btn.disabled = false;
-  btn.textContent = 'Refresh';
-}
-
-async function clearErrors() {
-  if (!confirm('Delete all logged errors? This cannot be undone.')) return;
-
-  const btn = document.getElementById('errors-clear-btn');
-  btn.disabled = true;
-  btn.textContent = 'Clearing…';
-
-  await fetch('/api/errors', { method: 'DELETE' }).catch(() => null);
-
-  btn.disabled = false;
-  btn.textContent = 'Clear all';
-  await loadErrors();
-}
-
 // ── MQTT status indicator ───────────────────────────────────────────────
 function updateMqttStatus(lastMqttMessageAt) {
   const el = document.getElementById('mqtt-status');
@@ -855,22 +549,13 @@ async function loadFroniusMeterStatus() {
   el.title = `In: ${d.lastMqttMessageAt ? new Date(d.lastMqttMessageAt).toLocaleTimeString() : 'never'} · Out: ${d.lastInverterSeenAt ? new Date(d.lastInverterSeenAt).toLocaleTimeString() : 'never'}`;
 }
 
-async function load() {
-  const [metrics, cellHealth] = await Promise.all([
-    fetch('/api/metrics/latest').then(r=>r.json()).catch(()=>[]),
-    fetch('/api/cell-health/latest').then(r=>r.json()).catch(()=>[])
-  ]);
+// AI Search is the default active tab, so its history/preview load immediately rather than
+// waiting for a tab click that already implicitly happened.
+loadAiHistory();
+updateAiPreview();
+aiHistoryLoaded = true;
+document.getElementById('ts').textContent = '';
 
-  allMetrics = metrics;
-  cellHealthData = cellHealth;
-  document.getElementById('ts').textContent = metrics.length ? 'As of ' + new Date(metrics[0].analysedAt).toLocaleTimeString() : '';
-  renderMetrics();
-  renderCellHealth('cell-health-1h', cellHealth, 60);
-  renderCellHealth('cell-health-24h', cellHealth, 1440);
-  // Deviation chart only renders when that tab is opened (lazy)
-}
-
-load();
 loadMqttStatus();
 loadFroniusMeterStatus();
 setInterval(loadMqttStatus, 5000);
