@@ -22,7 +22,7 @@ mV" can quietly become a real problem before anyone notices. CellWatcher exists 
   not just held in memory, so you can see what happened last week or last month, not only right now.
 - **Trend-aware health analysis**, not just instantaneous snapshots — cell imbalance growth rate,
   persistence, and predicted time-to-threshold are tracked automatically against configurable
-  alert levels.
+  alert levels, independently of whether any AI engine is even configured.
 - **Plain-English AI reports** (Claude and/or ChatGPT) on demand or on a schedule, so you don't have
   to interpret raw mV/°C numbers yourself to know whether something needs attention.
 - **A way to force the periodic full-charge/rest window** these packs need for passive balancing,
@@ -31,6 +31,18 @@ mV" can quietly become a real problem before anyone notices. CellWatcher exists 
   go looking.
 - **A path to the raw CAN bus** for anyone who wants to go deeper than what Battery-Emulator
   itself decodes.
+
+## Screenshots
+
+| | |
+|---|---|
+| **Dashboard** — live gauges, active alerts, the deterministic Balance Status recommendation, and a rolling SOC/delta trend | ![Dashboard](docs/screenshots/dashboard.png) |
+| **Cells** — full 108-cell heat map with a time-travel slider over any historical period, plus a SOC/power/delta trend for the selected window | ![Cells](docs/screenshots/cells.png) |
+| **Pack** — one configurable multi-series chart across every base and derived pack metric, with a series picker and multi-axis/normalized toggle | ![Pack](docs/screenshots/pack.png) |
+| **AI** — deep-analysis requests, a running cost-tracked analysis history, and a scoped chat | ![AI](docs/screenshots/ai.png) |
+| **Battery Balancing** — live override status, manual control, contactor test, and a run history | ![Battery Balancing](docs/screenshots/battery-balancing.png) |
+| **Canbus** — logging session control, live raw/decoded frame view, recorded session list | ![Canbus](docs/screenshots/canbus.png) |
+| **Config** — two-level tabs (shown here on mocked example data — real screenshots of this page would expose live credentials) | ![Config](docs/screenshots/config.png) |
 
 ## Components
 
@@ -46,8 +58,10 @@ still holding the port, and it can self-restart after a config save.
 - **Historians** (`PackHistorianService`, `CellHistorianService`) — write pack- and cell-level
   snapshots to MariaDB on a change-triggered/heartbeat cadence.
 - **Battery health analysis** (`BatteryHealthAnalysisService`) — periodic scoring of cell
-  imbalance (deviation, growth rate, persistence, predicted hours-to-threshold) against
-  configurable INFO/WARN/ALERT thresholds, feeding both the Health page and email alerts.
+  imbalance (deviation, growth rate, persistence, predicted hours-to-threshold) and pack-level
+  delta trends against configurable INFO/WARN/ALERT thresholds. This runs continuously and
+  deterministically, independent of any AI engine — it's what actually drives email alerts and the
+  Dashboard's Balance Status card, and the Cells page's per-cell severity badges.
 - **AI insights** (`ClaudeInsightsService`, `OpenAiInsightsService`, `AiInsightsOrchestrator`,
   `AiScheduleService`) — quick dashboard summaries and deep, multi-period reports in plain
   English, run on demand or on a daily/weekly/monthly schedule, with continuity between reports
@@ -65,6 +79,9 @@ still holding the port, and it can self-restart after a config save.
   `BatteryDecodeLookupService`, `BatteryCanMappingImportService`) — receives raw frames from the
   companion sniffer over UDP, logs them, and decodes recognized signals against an importable
   per-battery-type mapping. First-pass tooling: capture and log today, deeper analysis later.
+- **Port/firewall diagnostics** (`PortDiagnosticsService`, `FirewallHelper`) — the Config page can
+  test whether any port the app listens on or connects out through is actually open in Windows
+  Firewall, and add the missing rule on the spot.
 - **Web dashboard** (`Web/wwwroot`) — vanilla HTML/JS + ApexCharts, no build step, no framework.
 
 ### CanSniffer/firmware
@@ -83,18 +100,25 @@ A WiX bundle + MSI project (`Installer/`) packages CellWatcher as a normal Windo
 
 | Page | Purpose |
 |---|---|
-| Dashboard (`/`) | Live SOC gauge, pack voltage/current/power, cell delta, temps, capacity, BMS/emulator/pause/event status, AI insight card. |
-| Cells (`/cells.html`) | Full per-cell voltage/balancing grid with a time-travel slider over any historical period. |
+| Dashboard (`/`) | Live SOC gauge, pack voltage/current/power, cell delta, temps, capacity, BMS/emulator/pause/event status, the deterministic Balance Status card, AI insight card, active alerts, and an hour-scale SOC/delta trend. |
+| Cells (`/cells.html`) | Full per-cell voltage/balancing heat map (or a deviation bar chart) with a time-travel slider over any historical period, plus a per-cell severity badge for any cell whose 24h rolling deviation is trending WARN/ALERT. |
 | Pack (`/pack.html`) | One configurable chart across 19 base and derived pack metrics (SoC, SoH, voltage, current, power, temps, cell voltages, cell delta, capacity/energy) — pick series from checkboxes, choose multi-axis or normalized display. |
-| Health (`/health.html`) | Latest snapshot, per-cell deviation-from-average views (1h/24h), AI deep analysis + history + chat, application error log. |
+| AI (`/ai.html`) | AI Search (deep, multi-period analysis on demand or scheduled, with a cost-tracked history browser) and AI Chat (a conversation scoped to this battery system). |
 | Battery Balancing (`/battery-balancing.html`) | Live fake-meter status, manual override control, contactor test, history. Hidden entirely when the fake meter isn't enabled. |
 | Canbus (`/canbus.html`) | Start/stop raw CAN logging sessions, live raw/decoded frame view, per-battery-type CAN mapping import. |
-| Config (`/config.html`) | Everything above in one place: MQTT, MariaDB, logging cadence, health thresholds, AI engines/schedule/prompts, email, fake-meter/inverter wiring. |
+| Config (`/config.html`) | Everything above in one place, organized into top-level tabs — Connections (MQTT / Database sub-tabs), Logging, Analysis & Thresholds, Integrations (AI Engine / Email sub-tabs), Fronius Meter, Battery Balancing, Battery Type, Web Server, Diagnostics (application error log). |
 
 ## Data
 
 MariaDB, schema in `CellWatcher/Data/sql/` — plain hand-rolled `create_*`/`alter_*` scripts, no
 ORM or migration framework, so apply them in order against a fresh database before first run.
+
+Roughly: `battery_pack_reading` and `battery_cell_snapshot` hold the raw time series (what the
+Pack and Cells pages chart); `battery_health_metric` and `battery_cell_health` hold the analyzer's
+computed findings (what feeds alerts, the Balance Status card, and the Cells page's severity
+badges); `battery_ai_analysis` and `battery_ai_schedule` hold AI report history and schedules;
+`can_frame`/`can_session` hold raw CAN capture; `battery_control_history` holds balancing-override
+runs; `application_error` backs the Diagnostics tab.
 
 Live configuration (`CellWatcher/appsettings.json`) is intentionally **not** committed — it holds
 real MQTT/database credentials and network addresses. Create it locally per environment; the app
