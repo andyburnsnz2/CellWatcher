@@ -48,6 +48,12 @@ input:focus{border-color:#6ec62a}
 .toast.show{opacity:1;transform:translateY(0)}
 .toast.success{background:#0a2008;color:#6ec62a;border:1px solid #3a7a19}
 .toast.error{background:#3b0404;color:#f87171;border:1px solid #dc2626}
+.card-danger{background:#1a0505;border:1px solid #5a1414;border-radius:8px;padding:1.25rem;margin-bottom:1rem}
+.danger-toggle{display:flex;align-items:center;gap:.5rem;cursor:pointer;list-style:none;color:#f87171;font-size:.75rem;text-transform:uppercase;letter-spacing:.08em;font-weight:600}
+.danger-toggle::-webkit-details-marker{display:none}
+.danger-toggle::before{content:'▸';font-size:.7rem;transition:transform .15s}
+details[open] .danger-toggle::before{transform:rotate(90deg)}
+.danger-toggle-sub{text-transform:none;letter-spacing:normal;color:#a35b5b;font-weight:400;margin-left:.35rem}
 .history-table-wrap{overflow-x:auto}
 table.history{width:100%;border-collapse:collapse;font-size:.8rem}
 table.history th{text-align:left;font-size:.68rem;text-transform:uppercase;letter-spacing:.05em;color:#555;padding:.4rem .6rem;border-bottom:1px solid #222;white-space:nowrap}
@@ -103,12 +109,12 @@ table.history tr:last-child td{border-bottom:none}
     <span class="muted" id="manual-status" style="font-size:.8rem;margin-left:.75rem"></span>
   </div>
 
-  <div class="card">
-    <div class="section-head">Contactor Test (Manual — Not Automated)</div>
-    <div class="warning-note" style="margin-top:0;margin-bottom:1rem">⚠ These buttons publish directly to the Battery-Emulator (BE/command/STOP and BE/command/RESUME) with no safety interlock of any kind — nothing here ramps the inverter down first. Only use this to verify the contactors actually respond before any automatic sequencing exists. Confirm the inverter/pack current is already at zero yourself before pressing Stop.</div>
-    <button type="button" class="btn" id="contactor-stop-btn" onclick="stopContactors()" style="background:#3b0404;color:#f87171">Stop (Open Contactors)</button>
-    <button type="button" class="btn btn-primary" id="contactor-resume-btn" onclick="resumeContactors()">Resume (Allow Close)</button>
-  </div>
+  <details class="card-danger">
+    <summary class="danger-toggle">⚠ Hardware Contactor Test<span class="danger-toggle-sub">— raw, unrelated to Manual Control above</span></summary>
+    <div class="warning-note" style="margin-top:1rem;margin-bottom:1rem">⚠ These buttons publish directly to the Battery-Emulator (BE/command/STOP and BE/command/RESUME) with no safety interlock of any kind — nothing here ramps the inverter down first, and it has no connection to Manual Control's Start/Stop above. Only use this to verify the contactors actually respond before any automatic sequencing exists. Confirm the inverter/pack current is already at zero yourself before opening the contactors.</div>
+    <button type="button" class="btn" id="contactor-stop-btn" onclick="stopContactors()" style="background:#3b0404;color:#f87171">Open Contactors</button>
+    <button type="button" class="btn btn-primary" id="contactor-resume-btn" onclick="resumeContactors()">Close Contactors</button>
+  </details>
 
   <div class="card">
     <div class="section-head">History</div>
