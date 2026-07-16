@@ -77,6 +77,14 @@ input:focus,select:focus,textarea:focus{border-color:#6ec62a}
 .sec-tab{background:none;border:none;border-bottom:3px solid transparent;color:#666;padding:.65rem 1.4rem;cursor:pointer;font-size:.88rem;font-weight:500;margin-bottom:-2px;transition:color .15s,border-color .15s;white-space:nowrap;flex-shrink:0}
 .sec-tab:hover{color:#ccc}
 .sec-tab.active{color:#6ec62a;border-bottom-color:#6ec62a;font-weight:600}
+/* Second-level tabs within a section (e.g. Connections -> MQTT/Database) — smaller/less
+   prominent than the top-level sec-tab-bar so the hierarchy reads at a glance. */
+.sub-tab-bar{display:flex;gap:.4rem;margin-bottom:1.25rem}
+.sub-tab{background:#0a0a0a;border:1px solid #222;color:#888;padding:.35rem 1rem;border-radius:5px;cursor:pointer;font-size:.8rem;font-weight:600;transition:all .15s}
+.sub-tab:hover{border-color:#555;color:#e0e0e0}
+.sub-tab.active{background:#1a3a0a;border-color:#3a7a19;color:#6ec62a}
+.subsection{display:none}
+.subsection.active{display:block}
 .section{display:none}
 .section.active{display:block}
 /* Restart overlay */
@@ -133,7 +141,7 @@ table.mapping tr:last-child td{border-bottom:none}
       <button class="sec-tab" data-sec="sec-froniusmeter">Fronius Meter</button>
       <button class="sec-tab" data-sec="sec-batterybalancing" id="tab-batterybalancing">Battery Balancing</button>
       <button class="sec-tab" data-sec="sec-batterytype">Battery Type</button>
-      <button class="sec-tab" data-sec="sec-server">Server</button>
+      <button class="sec-tab" data-sec="sec-server">Web Server</button>
       <button class="sec-tab" data-sec="sec-diagnostics">Diagnostics</button>
     </div>
 
@@ -146,6 +154,13 @@ table.mapping tr:last-child td{border-bottom:none}
 
   <!-- Section: Connections -->
   <div id="sec-connections" class="section active">
+
+  <div class="sub-tab-bar">
+    <button class="sub-tab active" data-subsec="sub-connections-mqtt">MQTT</button>
+    <button class="sub-tab" data-subsec="sub-connections-database">Database</button>
+  </div>
+
+  <div id="sub-connections-mqtt" class="subsection active">
 
   <!-- MQTT -->
   <div class="card">
@@ -216,6 +231,11 @@ table.mapping tr:last-child td{border-bottom:none}
     </div>
   </div>
 
+  </div>
+  <!-- /Subsection: MQTT -->
+
+  <div id="sub-connections-database" class="subsection">
+
   <!-- MariaDB -->
   <div class="card">
     <div class="section-head">MariaDB Database</div>
@@ -224,6 +244,9 @@ table.mapping tr:last-child td{border-bottom:none}
       <input type="text" id="MariaDb_ConnectionString" placeholder="Server=…;Database=…">
     </div>
   </div>
+
+  </div>
+  <!-- /Subsection: Database -->
 
   </div>
   <!-- /Section: Connections -->
@@ -406,6 +429,13 @@ table.mapping tr:last-child td{border-bottom:none}
   <!-- Section: Integrations -->
   <div id="sec-integrations" class="section">
 
+  <div class="sub-tab-bar">
+    <button class="sub-tab active" data-subsec="sub-integrations-aiengine">AI Engine</button>
+    <button class="sub-tab" data-subsec="sub-integrations-email">Email</button>
+  </div>
+
+  <div id="sub-integrations-aiengine" class="subsection active">
+
   <!-- AI Engine toggles -->
   <div class="card">
     <div class="section-head">AI Engines</div>
@@ -557,6 +587,11 @@ table.mapping tr:last-child td{border-bottom:none}
     </div>
   </div>
 
+  </div>
+  <!-- /Subsection: AI Engine -->
+
+  <div id="sub-integrations-email" class="subsection">
+
   <!-- Email Notifications -->
   <div class="card">
     <div style="display:flex;align-items:center;gap:.75rem;margin-bottom:1rem;padding-bottom:.5rem;border-bottom:1px solid #222">
@@ -640,6 +675,9 @@ table.mapping tr:last-child td{border-bottom:none}
       <span class="muted" id="notif-test-status" style="font-size:.78rem"></span>
     </div>
   </div>
+
+  </div>
+  <!-- /Subsection: Email -->
 
   </div>
   <!-- /Section: Integrations -->
@@ -956,6 +994,21 @@ document.querySelectorAll('.sec-tab').forEach(btn => {
       loadErrors();
       errorsLoaded = true;
     }
+  });
+});
+
+// Second-level tab switching within a section (e.g. Connections -> MQTT/Database). Scoped to the
+// enclosing .section so two different sub-tab-bars on the page never fight over each other's
+// subsections, even though subsection ids are unique anyway.
+document.querySelectorAll('.sub-tab-bar').forEach(bar => {
+  const parentSection = bar.closest('.section');
+  bar.querySelectorAll('.sub-tab').forEach(btn => {
+    btn.addEventListener('click', () => {
+      bar.querySelectorAll('.sub-tab').forEach(t => t.classList.remove('active'));
+      parentSection.querySelectorAll(':scope > .subsection').forEach(s => s.classList.remove('active'));
+      btn.classList.add('active');
+      document.getElementById(btn.dataset.subsec).classList.add('active');
+    });
   });
 });
 
